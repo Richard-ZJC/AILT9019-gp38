@@ -18,6 +18,7 @@ STATUSES = ("OK", "CLARIFY", "REFUSE", "SERVICE_UNAVAILABLE", "BRAND")
 
 TEMPLATE: dict[str, Any] = {
     "status": "OK | CLARIFY | REFUSE | SERVICE_UNAVAILABLE",
+    "reason": "out_of_scope | not_packaging (REFUSE only)",
     "confidence": 0.0,
     "product": {"name": "Vitasoy lemon tea", "brand": "Vitasoy"},
     "components": [{"part": "carton", "material": "tetra pak", "confidence": 0.9}],
@@ -41,6 +42,7 @@ class AIPayload:
     explanations: dict[str, str] = field(default_factory=dict)
     search_used: bool = False
     source_hint: str | None = None
+    reason: str = ""
     raw_model: str = ""
     notes: list[str] = field(default_factory=list)
 
@@ -203,6 +205,14 @@ def validate(
         notes.append("status: OK without components -> CLARIFY")
         status = "CLARIFY"
 
+    # The only model-visible refusal nuance: a real item that simply has no
+    # packaging. Everything else the model calls "REFUSE" stays out_of_scope.
+    reason = raw.get("reason")
+    reason = reason.strip() if isinstance(reason, str) else ""
+    if reason and reason not in ("out_of_scope", "not_packaging"):
+        notes.append(f"reason: '{reason}' is not a known refusal reason -> dropped")
+        reason = ""
+
     # BRAND passes through even with empty products: pipeline._disambiguate owns
     # the degrade decision (it can still fetch candidates via web search).
 
@@ -220,6 +230,7 @@ def validate(
         explanations=explanations,
         search_used=bool(raw.get("search_used", False)),
         source_hint=source_hint,
+        reason=reason,
         raw_model=raw_model or str(raw.get("raw_model") or ""),
         notes=notes,
     )

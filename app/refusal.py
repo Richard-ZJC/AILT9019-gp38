@@ -12,6 +12,10 @@ from typing import Any
 from .matcher import normalise
 
 OUT_OF_SCOPE = "This packaging is not covered by the current rule set."
+NOT_PACKAGING = (
+    "That looks like a real item, but it comes without packaging - so there is nothing to recycle here. "
+    "If it came in a wrapper, bottle or cup, tell me about that packaging instead."
+)
 SERVICE_DOWN = "This request involves sensitive information and cannot be processed right now."
 TOO_MANY_QUESTIONS = (
     "I still cannot identify the packaging after two rounds of questions. "
@@ -37,6 +41,7 @@ def hazard_hit(text: str) -> str | None:
 def payload(kind: str, reason: str, **extra: Any) -> dict[str, Any]:
     message = {
         "out_of_scope": OUT_OF_SCOPE,
+        "not_packaging": NOT_PACKAGING,
         "service_unavailable": SERVICE_DOWN,
         "too_many_questions": TOO_MANY_QUESTIONS,
         "hazard": HAZARD,

@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from app import refusal
 from app.ai_plugin.mock_client import MockClient
 from app.ai_plugin.router import Router
 from app.ai_plugin.schema import validate
@@ -287,6 +288,33 @@ def test_brand_without_search_degrades() -> None:
     check("12 pipeline: failed search -> ordinary packaging clarify", ok, str(clarify)[:120])
 
 
+# ------------------------------------------------- 13. refusal reason passthrough
+
+def test_refusal_reason_passthrough() -> None:
+    keep = validate(json.loads(good_payload(status="REFUSE", components=[], reason="not_packaging")), RULES, FEATURES)
+    drop = validate(json.loads(good_payload(status="REFUSE", components=[], reason="i feel like it")), RULES, FEATURES)
+    plain = validate(json.loads(good_payload(status="REFUSE", components=[])), RULES, FEATURES)
+    ok = (
+        keep.status == "REFUSE"
+        and keep.reason == "not_packaging"
+        and drop.reason == ""
+        and any("reason" in note for note in drop.notes)
+        and plain.reason == ""
+    )
+    check("13 schema: not_packaging reason kept, invented reasons dropped", ok, f"keep={keep.reason} drop={drop.reason}")
+
+
+def test_refuse_not_packaging_copy() -> None:
+    main = FakeClient(
+        "openai",
+        [json.dumps({"status": "REFUSE", "reason": "not_packaging", "confidence": 0.7, "components": []})],
+    )
+    pipeline = Pipeline(RULES, FEATURES, router=Router([main], timeout=5))
+    result = pipeline.identify("banana")
+    ok = result["status"] == "REFUSE" and result["message"] == refusal.NOT_PACKAGING
+    check("14 pipeline: model not_packaging -> dedicated copy", ok, result.get("message", ""))
+
+
 def main() -> int:
     print("AI plugin tests (fake providers, no network)")
     test_schema_accepts_valid()
@@ -301,6 +329,8 @@ def main() -> int:
     test_brand_payload_keeps_products()
     test_brand_disambiguation_flow()
     test_brand_without_search_degrades()
+    test_refusal_reason_passthrough()
+    test_refuse_not_packaging_copy()
 
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     total = len(RESULTS)

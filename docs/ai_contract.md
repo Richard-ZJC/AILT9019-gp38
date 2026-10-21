@@ -13,6 +13,7 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 | `components` | verdicts, only in `OK` | |
 | `clarify` | question payload, only in `CLARIFY` | |
 | `message` | refusal copy / empty | copy lives in `refusal.py` only |
+| `reason` | refusal detail, only in `REFUSE` | `model: not_packaging` etc.; diagnostics, the frontend shows `message` |
 | `search_used` | reserved for AI search | |
 | `source_hint` | rule id or null | validated against rules.json |
 | `raw_model` | `none / openai / anthropic` | |
@@ -24,7 +25,7 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 1. **Clarify payload**: built ONLY by `fallback.build` (packaging) or `fallback.build_products` (brand disambiguation); schema.py delegates; pipeline never re-assembles.
 2. **Envelope**: built ONLY by `pipeline._base_body`; branches `update()` their own keys on top.
 3. **Model output is never trusted**: `schema.validate` repairs or downgrades; a malformed answer can never become a category.
-4. **Refusal copy**: lives in `refusal.py`, one string per reason, never duplicated elsewhere.
+4. **Refusal copy**: lives in `refusal.py`, one string per reason, never duplicated elsewhere. Five reasons: `out_of_scope` (unrecognisable input), `not_packaging` (a real item that comes without packaging - a whole lemon, leftovers; the model signals it via `reason: "not_packaging"`, schema whitelists it, everything unknown falls back to `out_of_scope`), `hazard`, `too_many_questions`, `service_unavailable`.
 5. **Options**: packaging clarify uses only ids from `features.json`; anything else is replaced with the fixed list.
 
 ## Brand disambiguation (web search)

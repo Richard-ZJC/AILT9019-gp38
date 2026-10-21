@@ -143,7 +143,8 @@ class Pipeline:
             return self._unavailable(session, reason="provider reported SERVICE_UNAVAILABLE")
 
         if payload.status == "REFUSE":
-            return self._refusal(session, refusal.payload("out_of_scope", "model: out of scope"))
+            kind = payload.reason or "out_of_scope"
+            return self._refusal(session, refusal.payload(kind, f"model: {kind}"))
 
         if payload.status == "BRAND":
             return self._disambiguate(session, query, payload, identification)
