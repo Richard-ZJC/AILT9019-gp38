@@ -14,7 +14,7 @@ from typing import Any, Sequence
 from ..fallback import build as build_clarify
 from ..rules_loader import FeatureSet, Rule
 
-STATUSES = ("OK", "CLARIFY", "REFUSE", "SERVICE_UNAVAILABLE")
+STATUSES = ("OK", "CLARIFY", "REFUSE", "SERVICE_UNAVAILABLE", "BRAND")
 
 TEMPLATE: dict[str, Any] = {
     "status": "OK | CLARIFY | REFUSE | SERVICE_UNAVAILABLE",
@@ -22,6 +22,7 @@ TEMPLATE: dict[str, Any] = {
     "product": {"name": "Vitasoy lemon tea", "brand": "Vitasoy"},
     "components": [{"part": "carton", "material": "tetra pak", "confidence": 0.9}],
     "clarify": {"question": "Which packaging do you see?", "options": ["bottle", "cup", "box"]},
+    "products": None,
     "explanations": {"beverage-carton": "Empty and rinse, then flatten into the Tetra Pak slot."},
     "search_used": False,
     "source_hint": None,
@@ -36,6 +37,7 @@ class AIPayload:
     product: dict[str, str] = field(default_factory=dict)
     components: list[dict[str, Any]] = field(default_factory=list)
     clarify: dict[str, Any] | None = None
+    products: list[dict[str, str]] = field(default_factory=list)
     explanations: dict[str, str] = field(default_factory=dict)
     search_used: bool = False
     source_hint: str | None = None
@@ -60,6 +62,32 @@ def _as_confidence(value: Any) -> float:
     if number != number:  # NaN
         return 0.0
     return max(0.0, min(1.0, number))
+
+
+def clean_products(value: Any, notes: list[str] | None = None) -> list[dict[str, str]]:
+    """Validate an AI-proposed product candidate list ({name, packaging})."""
+    notes = notes if notes is not None else []
+    if not isinstance(value, list):
+        if value is not None:
+            notes.append("products: not a list")
+        return []
+    cleaned: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            notes.append("products: non-object entry dropped")
+            continue
+        name = item.get("name")
+        packaging = item.get("packaging")
+        if not isinstance(name, str) or not name.strip():
+            notes.append("products: entry without 'name' dropped")
+            continue
+        cleaned.append(
+            {
+                "name": name.strip(),
+                "packaging": packaging.strip() if isinstance(packaging, str) else "",
+            }
+        )
+    return cleaned[:5]
 
 
 def _clean_components(value: Any, notes: list[str]) -> list[dict[str, Any]]:
@@ -159,6 +187,7 @@ def validate(
 
     components = _clean_components(raw.get("components"), notes)
     clarify = _clean_clarify(raw.get("clarify"), features, notes)
+    products = clean_products(raw.get("products"), notes)
     explanations = _clean_explanations(raw.get("explanations"), notes)
 
     source_hint = raw.get("source_hint")
@@ -174,6 +203,9 @@ def validate(
         notes.append("status: OK without components -> CLARIFY")
         status = "CLARIFY"
 
+    # BRAND passes through even with empty products: pipeline._disambiguate owns
+    # the degrade decision (it can still fetch candidates via web search).
+
     if status == "CLARIFY" and clarify is None:
         clarify = fixed_clarify(features)
         notes.append("clarify: filled from the fixed option list")
@@ -184,6 +216,7 @@ def validate(
         product=product,
         components=components,
         clarify=clarify,
+        products=products,
         explanations=explanations,
         search_used=bool(raw.get("search_used", False)),
         source_hint=source_hint,

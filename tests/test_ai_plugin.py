@@ -192,6 +192,101 @@ def test_single_option_clarify_expanded() -> None:
     check("9 schema: one-option clarify -> full option list", ok, str(payload.clarify))
 
 
+# ------------------------------------------------- 10-12. brand disambiguation
+
+BRAND_PAYLOAD = json.dumps(
+    {
+        "status": "BRAND",
+        "confidence": 0.8,
+        "product": {"name": "coca cola", "brand": "Coca-Cola"},
+        "components": [],
+        "clarify": None,
+        "products": None,
+        "explanations": {},
+        "search_used": False,
+        "source_hint": None,
+    }
+)
+
+
+def test_brand_payload_keeps_products() -> None:
+    raw = json.loads(
+        good_payload(
+            status="BRAND",
+            components=[],
+            source_hint=None,
+            products=[
+                {"name": "Coke Zero 330ml can", "packaging": "aluminium can"},
+                {"no_name_here": True},
+                "junk",
+                {"name": "Coke 500ml bottle", "packaging": "pet bottle"},
+            ],
+        )
+    )
+    payload = validate(raw, RULES, FEATURES)
+    ok = (
+        payload.status == "BRAND"
+        and [p["name"] for p in payload.products] == ["Coke Zero 330ml can", "Coke 500ml bottle"]
+        and any("products" in note for note in payload.notes)
+    )
+    check("10 schema: BRAND keeps cleaned product candidates", ok, str(payload.products))
+
+
+def test_brand_disambiguation_flow() -> None:
+    main = FakeClient("openai", [BRAND_PAYLOAD])
+    search = FakeClient(
+        "openai",
+        [
+            json.dumps(
+                {
+                    "products": [
+                        {"name": "Coca-Cola Classic 330ml can", "packaging": "aluminium can"},
+                        {"name": "Coca-Cola Zero 500ml bottle", "packaging": "pet bottle"},
+                    ]
+                }
+            )
+        ],
+    )
+    pipeline = Pipeline(
+        RULES,
+        FEATURES,
+        router=Router([main], timeout=5),
+        search_router=Router([search], timeout=5),
+    )
+    result = pipeline.identify("coca cola")
+    clarify = result.get("clarify") or {}
+    ok = (
+        result["status"] == "CLARIFY"
+        and clarify.get("kind") == "disambiguate"
+        and clarify.get("source") == "ai-search"
+        and clarify.get("options") == ["Coca-Cola Classic 330ml can", "Coca-Cola Zero 500ml bottle"]
+        and clarify.get("hints", {}).get("Coca-Cola Zero 500ml bottle") == "pet bottle"
+        and main.calls == 1
+        and search.calls == 1
+    )
+    check("11 pipeline: brand-only -> web-search disambiguation", ok, str(clarify))
+
+
+def test_brand_without_search_degrades() -> None:
+    main = FakeClient("openai", [BRAND_PAYLOAD])
+    search = FakeClient("openai", ["this is not json at all"])
+    pipeline = Pipeline(
+        RULES,
+        FEATURES,
+        router=Router([main], timeout=5),
+        search_router=Router([search], timeout=5),
+    )
+    result = pipeline.identify("coca cola")
+    clarify = result.get("clarify") or {}
+    ok = (
+        result["status"] == "CLARIFY"
+        and "kind" not in clarify
+        and clarify.get("options") == list(FEATURES.ids)
+        and search.calls == 1
+    )
+    check("12 pipeline: failed search -> ordinary packaging clarify", ok, str(clarify)[:120])
+
+
 def main() -> int:
     print("AI plugin tests (fake providers, no network)")
     test_schema_accepts_valid()
@@ -203,6 +298,9 @@ def main() -> int:
     test_options_out_of_range()
     test_third_clarify_refused()
     test_single_option_clarify_expanded()
+    test_brand_payload_keeps_products()
+    test_brand_disambiguation_flow()
+    test_brand_without_search_degrades()
 
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     total = len(RESULTS)

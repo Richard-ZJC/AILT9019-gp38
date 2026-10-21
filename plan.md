@@ -234,7 +234,7 @@ AILT9019-gp38/
 | T12 | 🟦 fuzzy.py difflib 模糊识别 | 🟦 | should | ✅（并入 T3） | 相似词/词重叠用例 | **实现位置变了**：落在 `matcher.fuzzy_match`（Damerau-Levenshtein，非 difflib），两阶段：词重叠 → typo；统一判据=单词只属于一条规则；`fuzzy.py` 仍是空壳可删 |
 | T13 | 🟦 SSE 流式 + 异步双路（threading） | 🟦 | should | ⬜ | 流式/进度事件 | `/identify/stream` 501→200 |
 | T14 | 🟦 memory.py 本地记忆落盘 | 🟦 | should | 🔶 | 落盘/关闭开关 | 已实现（`save_memory` 开关 + data/memory/）；**与 proposal「不存储查询」红线冲突，见 §8.2-P5** |
-| T15 | 🟦 AI 搜索 + AI 动态反问文案 | 🟦 | should | 🔶 | 搜索标记用例 | 动态反问**已实现一半**：模型可自带 clarify.question（schema 校验），fallback 文案固定；AI 搜索 `search_used` 未做 |
+| T15 | 🟦 AI 搜索 + AI 动态反问文案 | 🟦 | should | ✅（2026-10-22） | 搜索标记用例 | **品牌反问已上线**：裸品牌名 → 模型 status `BRAND` → `Identifier.disambiguate` 走搜索路由（百炼 `enable_search:true` 实测生效）→ 商品候选列表（kind=disambiguate）→ 用户点选 → 重新识别出建议；搜索失败/候选<2 降级为普通包装反问；防回环护栏（一轮后再 BRAND → 包装反问）；契约见 docs/ai_contract.md |
 
 ### 8.1 本轮实现记录（与计划的偏差，需团队确认）
 
@@ -265,7 +265,7 @@ AILT9019-gp38/
 |---|---|---|---|
 | P1 | 评测品牌 10 条：维他柠檬茶 / Nissin / **Tempo tissue** / Coca-Cola can / Starbucks cup / McDonald's paper bag / instant noodle wrapper / milk tea cup / plastic water bottle / glass jar | 用例集覆盖其中 6 条（Vitasoy、Nissin、Starbucks、McDonald's bag、Bonaqua≈water bottle、Perrier≈glass jar），wrapper/lid 有变体用例 | **Tempo tissue 无规则可匹配**（rules.json 无 tissue）→ 要么补一条 paper-general 关键词（tissue 空盒/纸巾盒是否可回收需查官方指南），要么记为「不覆盖→拒答」并写进文档；**Coca-Cola can、milk tea cup、维他柠檬茶（中文）未进用例集** → 补 3 条用例 |
 | P2 | 中文查询（should-have） | ⬜ 未做；`normalise()` 会把中文剥掉，中文输入全部落到 AI 路径（真模型大概率能答，但不是设计保证） | 输入层加繁简/全半角归一 + rules.json 加中文关键词（维他柠檬茶等）；排在 T10 前后，与团队确认优先级 |
-| P3 | AI 模型带 search / product lookup | ⬜ `search_used` 恒 false | 百炼网关若支持 `enable_search`，经 `extra_body` 注入即可试点；模型不确定的品牌（Tempo？）可借搜索兜底 |
+| P3 | AI 模型带 search / product lookup | ✅ 2026-10-22：`enable_search` 经 extra_body 注入百炼网关实测生效（prompt_tokens 4081 = 搜索结果注入）；品牌查询 → 商品列表反问 → 点选 → 建议，全链路真 key 验证通过 | `search_used` 仍恒 false（品牌搜索走独立路由，未回填该标记，需团队确认是否补） |
 | P4 | 测试日志（should-have：basic test log with pass/fail） | ⬜ run_tests 输出只在终端 | `run_tests.py` 落一份 `tests/TESTLOG.md`（时间戳 + 分组结果），每次评测覆盖 |
 | P5 | 「App 不存储用户查询」 | **冲突**：session 内存轮次 + memory.py 可落盘 data/memory/（`save_memory` 开关） | plan §4.11 已修订为「本地会话记忆 + 可关闭」；**需同步回 proposal**，且 README 缺 Data limits/privacy 段（proposal §4 明确要求） |
 | P6 | README：安装 / 启动 / API key / 示例 / supported items | ✅ 已有 | 补 Data limits & privacy 一段（P5 一起改） |

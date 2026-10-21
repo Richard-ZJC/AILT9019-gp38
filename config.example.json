@@ -2,6 +2,7 @@
   "providers": ["openai", "anthropic"],
   "timeout_seconds": 15,
   "max_clarify_rounds": 2,
+  "enable_search": true,
   "save_memory": false,
   "debug": false,
   "openai": {

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 from .ai_plugin.router import Router, RouterResult
-from .ai_plugin.schema import AIPayload, fixed_clarify, validate
+from .ai_plugin.schema import AIPayload, clean_products, fixed_clarify, validate
 from .matcher import candidates as top_candidates
 from .rules_loader import FeatureSet, Rule
 
@@ -33,6 +33,7 @@ Hard rules:
 - A product with several parts (cup + lid + sleeve) is NOT a reason to clarify: list every part with its own confidence and answer with status "OK".
 - The user text may contain typos. If you can confidently map it to a product or packaging word (e.g. "Trea" -> Tetra Pak, "nissin cup noddle" -> cup noodles), silently correct it and answer OK with the corrected product name.
 - If the text is NOT a plausible product or packaging mention at all (random letters, keyboard mash, a question or sentence about something unrelated), set status to "REFUSE". Never ask clarifying questions about input you cannot recognise.
+- If the text names ONLY a bare brand or company with NO product line and NO size/variant (e.g. "Coca-Cola", "Vitasoy", "维他", "Nestle"), set status to "BRAND", leave components empty and products null - the orchestrator fetches product candidates with web search and asks the user to pick one. A text that names a product line or a size (e.g. "Coca-Cola Classic 330ml", "Vitasoy lemon tea") is a CONCRETE product: answer OK with its packaging components, never BRAND.
 - clarify.options MUST be chosen from OPTION IDS and nothing else. Never invent an option.
 - source_hint MUST be one of RULE IDS, or null.
 - One component per packaging part. "part" and "material" are single lowercase words or short phrases - never alternatives such as "cup/bowl" or "plastic or paper". Split a product with several parts into several components.
@@ -40,11 +41,12 @@ Hard rules:
 
 JSON schema (all keys required):
 {
-  "status": "OK" | "CLARIFY" | "REFUSE",
+  "status": "OK" | "CLARIFY" | "REFUSE" | "BRAND",
   "confidence": 0.0-1.0,
   "product": {"name": "string", "brand": "string"},
   "components": [{"part": "string", "material": "string", "confidence": 0.0-1.0}],
   "clarify": {"question": "string", "options": ["option-id"]} | null,
+  "products": null,
   "explanations": {"rule-id": "one sentence on how to prepare this item"},
   "search_used": false,
   "source_hint": "rule-id" | null
@@ -128,13 +130,35 @@ CORRECTION = (
     "matching the schema exactly, with no markdown fences and no commentary."
 )
 
+DISAMBIG_PROMPT = """You help "Campus Recycling Helper" narrow down a brand-only query.
+
+The user typed just a brand or product-line name. Web search is ENABLED for this
+request - use it. Pick 3-5 CONCRETE packaged products of that brand that are
+actually sold in Hong Kong, most iconic first. For each product give its dominant
+packaging form as a short lowercase phrase such as "pet bottle", "tetra pak carton",
+"aluminium can", "plastic cup", "paper cup".
+
+Reply with exactly one JSON object. No prose, no markdown fences:
+{"products": [{"name": "Vitasoy lemon tea 250ml", "packaging": "tetra pak carton"}]}
+"""
+
 
 class Identifier:
-    def __init__(self, router: Router, rules: Sequence[Rule], features: FeatureSet, max_parse_retries: int = 1) -> None:
+    def __init__(
+        self,
+        router: Router,
+        rules: Sequence[Rule],
+        features: FeatureSet,
+        max_parse_retries: int = 1,
+        search_router: Router | None = None,
+    ) -> None:
         self.router = router
         self.rules = list(rules)
         self.features = features
         self.max_parse_retries = max_parse_retries
+        # Optional web-search-enabled router, used only for brand disambiguation
+        # so the per-query cost of enable_search stays surgical.
+        self.search_router = search_router
 
     def run(self, text: str, image: str | None = None) -> Identification:
         messages = build_messages(text, self.rules, self.features)
@@ -179,3 +203,21 @@ class Identifier:
 
             messages = build_messages(text, self.rules, self.features, correction=CORRECTION)
             result = self.router.complete(messages, image=image)
+
+    def disambiguate(self, brand_text: str) -> list[dict[str, str]]:
+        """Web-search product candidates for a brand-only query. [] means degrade."""
+        router = self.search_router or self.router
+        messages = [
+            {"role": "system", "content": DISAMBIG_PROMPT},
+            {"role": "user", "content": brand_text},
+        ]
+        result = router.complete(messages)
+        if not result.ok:
+            return []
+        parsed = parse_json(result.text)
+        if parsed is None:
+            return []
+        notes: list[str] = []
+        products = clean_products(parsed.get("products"), notes)
+        # Fewer than two candidates is not a choice - degrade to the normal flow.
+        return products if len(products) >= 2 else []

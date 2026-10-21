@@ -19,6 +19,7 @@ def build_clients(
     features: FeatureSet,
     config: dict[str, Any],
     force_mock: bool = False,
+    enable_search: bool = False,
 ) -> tuple[list[Any], list[str]]:
     timeout = float(config.get("timeout_seconds", 10))
     notes: list[str] = []
@@ -35,13 +36,18 @@ def build_clients(
             if not api_key:
                 notes.append("openai: skipped, no api key")
                 continue
+            extra_body = dict(section.get("extra_body") or {})
+            if enable_search:
+                # Qwen/DashScope-compatible web search. Only used by the
+                # brand-disambiguation router, never by the main identify call.
+                extra_body["enable_search"] = True
             clients.append(
                 OpenAIClient(
                     api_key=api_key,
                     model=str(section.get("model") or "gpt-4o-mini"),
                     base_url=str(section.get("base_url") or "https://api.openai.com/v1"),
                     timeout=timeout,
-                    extra_body=section.get("extra_body") or {},
+                    extra_body=extra_body,
                 )
             )
         elif name == "anthropic":
@@ -74,6 +80,13 @@ def build_pipeline(
     clients, notes = build_clients(rules, features, config, force_mock=force_mock)
     timeout = float(config.get("timeout_seconds", 10))
     router = Router(clients, timeout=timeout) if clients else None
+
+    search_router: Router | None = None
+    if router is not None and bool(config.get("enable_search", True)) and not force_mock:
+        search_clients, _ = build_clients(rules, features, config, enable_search=True)
+        if search_clients:
+            search_router = Router(search_clients, timeout=timeout)
+
     sessions = SessionStore(max_clarify_rounds=int(config.get("max_clarify_rounds", 2)))
     memory = Memory(enabled=bool(config.get("save_memory", False)))
     pipeline = Pipeline(
@@ -83,5 +96,6 @@ def build_pipeline(
         sessions=sessions,
         memory=memory,
         debug=bool(config.get("debug", False)),
+        search_router=search_router,
     )
     return pipeline, notes

@@ -31,12 +31,15 @@ class Pipeline:
         min_confidence: float = MIN_CONFIDENCE,
         debug: bool = False,
         use_fast_path: bool = True,
+        search_router: Router | None = None,
     ) -> None:
         self.rules = list(rules)
         self.features = features
         self.adjudicator = Adjudicator(self.rules)
         self.router = router
         self.identifier = Identifier(router, self.rules, features) if router is not None else None
+        if self.identifier is not None and search_router is not None:
+            self.identifier.search_router = search_router
         self.sessions = sessions or SessionStore()
         self.memory = memory or Memory()
         self.min_confidence = min_confidence
@@ -142,6 +145,9 @@ class Pipeline:
         if payload.status == "REFUSE":
             return self._refusal(session, refusal.payload("out_of_scope", "model: out of scope"))
 
+        if payload.status == "BRAND":
+            return self._disambiguate(session, query, payload, identification)
+
         if payload.status == "CLARIFY" or self._low_confidence(payload):
             # payload.clarify already comes from fallback.build (schema delegates),
             # so question/options/labels/hints/source are always consistent here.
@@ -189,6 +195,22 @@ class Pipeline:
         best = max(component.get("confidence", 0.0) for component in payload.components)
         return best < self.min_confidence
 
+    def _disambiguate(self, session: Session, query: str, payload, identification: Identification) -> dict[str, Any]:
+        """Brand-only query: fetch product candidates via web search, let the user pick."""
+        if session.context.get("disambiguated"):
+            # Loop guard: the user already picked a product and the model still
+            # says BRAND - stop searching, fall back to the packaging question.
+            return self._ask(session, fallback.build(self.features), payload, identification)
+        products = payload.products
+        if not products and self.identifier is not None:
+            products = self.identifier.disambiguate(query)
+        if not products:
+            # Search unavailable or useless - fall back to the ordinary packaging question.
+            return self._ask(session, fallback.build(self.features), payload, identification)
+        question = f"Which '{query}' product do you have?"
+        clarify = fallback.build_products(question, products)
+        return self._ask(session, clarify, payload, identification)
+
     # ------------------------------------------------------------ response builders
 
     def _base_body(self, session: Session, status: str, mode: str) -> dict[str, Any]:
@@ -217,6 +239,8 @@ class Pipeline:
             )
 
         self.sessions.note_question(session, clarify)
+        if clarify.get("kind") == "disambiguate":
+            session.remember(disambiguated=True)
         session.add_turn("assistant", clarify.get("question", ""))
         body = self._base_body(session, "CLARIFY", "clarify")
         body.update(

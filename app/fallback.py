@@ -27,6 +27,23 @@ def build(features: FeatureSet, question: str | None = None, options: list[str] 
     }
 
 
+def build_products(question: str, products: list[dict[str, str]]) -> dict[str, Any]:
+    """Clarify payload whose options are AI-searched product names, not feature ids.
+
+    Same envelope shape as build(), plus kind="disambiguate" so the front end
+    knows a chip click means "re-identify this product", not "/answer".
+    """
+    names = [product["name"] for product in products]
+    return {
+        "question": question,
+        "options": names,
+        "labels": {product["name"]: product["name"] for product in products},
+        "hints": {product["name"]: product["packaging"] for product in products},
+        "kind": "disambiguate",
+        "source": "ai-search",
+    }
+
+
 def component_from_choice(choice: str, features: FeatureSet) -> dict[str, Any] | None:
     """Map a chosen option id to a component description for the adjudicator."""
     feature = features.by_id(choice)

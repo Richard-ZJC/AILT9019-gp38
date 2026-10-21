@@ -15,6 +15,7 @@ DEFAULTS: dict[str, Any] = {
     "providers": ["openai", "anthropic"],
     "timeout_seconds": 10,
     "max_clarify_rounds": 2,
+    "enable_search": True,
     "save_memory": False,
     "debug": False,
     "openai": {"api_key": "", "model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"},

@@ -1,12 +1,12 @@
 # AI Response Contract
 
-One envelope, four statuses. Any branch that returns something else is a bug.
+One envelope, five statuses. Any branch that returns something else is a bug.
 
 ## Envelope (12 keys, built only by `Pipeline._base_body`)
 
 | Key | Meaning | Notes |
 |---|---|---|
-| `status` | `OK / CLARIFY / REFUSE / SERVICE_UNAVAILABLE` | exactly one of four |
+| `status` | `OK / CLARIFY / REFUSE / SERVICE_UNAVAILABLE` | exactly one of four; the model's fifth status `BRAND` never reaches the wire as itself |
 | `session_id` | server-side session handle | |
 | `confidence` | 0.0-1.0, 3 decimals | |
 | `product` | `{name, brand}` | may be empty |
@@ -21,8 +21,15 @@ One envelope, four statuses. Any branch that returns something else is a bug.
 
 ## Rules that keep it fixed
 
-1. **Clarify payload**: built ONLY by `fallback.build` (schema.py delegates; pipeline never re-assembles).
+1. **Clarify payload**: built ONLY by `fallback.build` (packaging) or `fallback.build_products` (brand disambiguation); schema.py delegates; pipeline never re-assembles.
 2. **Envelope**: built ONLY by `pipeline._base_body`; branches `update()` their own keys on top.
 3. **Model output is never trusted**: `schema.validate` repairs or downgrades; a malformed answer can never become a category.
 4. **Refusal copy**: lives in `refusal.py`, one string per reason, never duplicated elsewhere.
-5. **Options**: only ids from `features.json`; anything else is replaced with the fixed list.
+5. **Options**: packaging clarify uses only ids from `features.json`; anything else is replaced with the fixed list.
+
+## Brand disambiguation (web search)
+
+- Bare brand name (`可口可乐`, `Nestle`) -> model status `BRAND` -> `Identifier.disambiguate` runs on the **search router** (OpenAI client + `enable_search: true`, Qwen/DashScope web search; never the main identify call) -> `CLARIFY` with `clarify.kind = "disambiguate"`, options = product names, hints = packaging phrases, `source = "ai-search"`.
+- A chip click re-identifies the product name (frontend calls `/identify`), it is not an `/answer`.
+- Loop guard: after one disambiguation round (`session.context.disambiguated`), a second `BRAND` degrades to the ordinary packaging clarify.
+- Search failure or `< 2` candidates degrades to the ordinary packaging clarify - never a guess.

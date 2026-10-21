@@ -253,10 +253,12 @@ function render(payload) {
 
   if (payload.status === "CLARIFY") {
     const clarify = payload.clarify || { options: [], labels: {}, hints: {} };
+    const disambiguate = clarify.kind === "disambiguate";
     const buttons = (clarify.options || []).map(id =>
       `<button type="button" data-choice="${escapeHtml(id)}">${escapeHtml(clarify.labels?.[id] || id)}</button>`).join("");
     resultEl.innerHTML = `<div class="card">
       <p class="product">${escapeHtml(clarify.question || "Which packaging do you see?")}</p>
+      ${disambiguate ? `<div class="clarify-note" style="display:block">Searched the web for product candidates — pick the one in your hand.</div>` : ""}
       <div class="options">${buttons}</div>
       <div class="clarify-note" id="clarify-note"></div>
       <div class="alt-row">
@@ -269,7 +271,7 @@ function render(payload) {
         </button>
       </div>
       <div class="free-input hidden" id="free-input">
-        <input id="free-text" type="text" placeholder="Describe the packaging in your own words…" autocomplete="off" maxlength="400" />
+        <input id="free-text" type="text" placeholder="${disambiguate ? "Type the product name…" : "Describe the packaging in your own words…"}" autocomplete="off" maxlength="400" />
         <button type="button" class="free-send" id="free-send" title="Send">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3.5 11.2 20.2 4l-4.6 16.4-4.3-6.1-7.8-3.1Z"/><path d="M11.3 14.3 20.2 4"/>
@@ -313,6 +315,12 @@ function render(payload) {
     };
     resultEl.querySelectorAll("[data-choice]").forEach(btn =>
       btn.addEventListener("click", () => {
+        if (disambiguate) {
+          // A product chip means "identify THIS product" - a full round-trip,
+          // not the packaging confirm panel.
+          identify(btn.dataset.choice);
+          return;
+        }
         selected = btn.dataset.choice;
         resultEl.querySelectorAll("[data-choice]").forEach(b => b.classList.toggle("selected", b === btn));
         showNote(selected);
