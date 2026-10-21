@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "note": "Single source of truth for clarifying-question options. The AI may only pick from these ids; schema.py rejects anything else.",
+    "verified_on": "2026-10-21"
+  },
+  "question": "Which packaging do you see on the product?",
+  "options": [
+    { "id": "bottle", "label": "Plastic bottle", "part": "bottle", "material": "plastic" },
+    { "id": "glass-bottle", "label": "Glass bottle or jar", "part": "bottle", "material": "glass" },
+    { "id": "carton", "label": "Carton / Tetra Pak", "part": "carton", "material": "tetra pak" },
+    { "id": "cup", "label": "Cup (paper, plastic or foam)", "part": "cup", "material": "plastic" },
+    { "id": "can", "label": "Metal can", "part": "can", "material": "aluminium" },
+    { "id": "box", "label": "Cardboard box", "part": "box", "material": "cardboard" },
+    { "id": "bag", "label": "Paper bag", "part": "bag", "material": "paper" },
+    { "id": "tray", "label": "Plastic tray or blister", "part": "tray", "material": "plastic" },
+    { "id": "lid", "label": "Lid or cap", "part": "lid", "material": "plastic" },
+    { "id": "battery", "label": "Rechargeable battery", "part": "battery", "material": "lithium" }
+  ]
+}

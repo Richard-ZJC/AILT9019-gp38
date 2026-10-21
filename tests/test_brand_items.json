@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "group": "brand_items",
+    "description": "Well-known products whose packaging is covered by the rule set. Category and source must both be right.",
+    "pass_line": 0.8
+  },
+  "cases": [
+    {
+      "id": "b01",
+      "text": "Vitasoy lemon tea",
+      "expect_status": "OK",
+      "expect_categories": ["Recyclable - Tetra Pak"],
+      "note": "Beverage carton -> Tetra Pak slot"
+    },
+    {
+      "id": "b02",
+      "text": "Nissin cup noodles",
+      "expect_status": "OK",
+      "expect_categories": ["Recyclable - Plastic"],
+      "note": "The cup/bowl is plastic, the lid is not accepted"
+    },
+    {
+      "id": "b03",
+      "text": "Starbucks takeaway coffee cup",
+      "expect_status": "OK",
+      "expect_categories": ["Recyclable - Tetra Pak"],
+      "note": "Clean cup -> tetra pak per the photo guide"
+    },
+    {
+      "id": "b04",
+      "text": "Pizza Hut pizza box",
+      "expect_status": "OK",
+      "expect_categories": ["Recyclable - Paper"],
+      "note": "Clean pizza box -> paper"
+    },
+    {
+      "id": "b05",
+      "text": "Perrier glass bottle",
+      "expect_status": "OK",
+      "expect_categories": ["Recyclable - Glass"],
+      "note": "Glass bottle -> glass slot"
+    },
+    {
+      "id": "b06",
+      "text": "Bonaqua water bottle",
+      "expect_status": "OK",
+      "expect_categories": ["Recyclable - Plastic"],
+      "note": "PET bottle -> plastic"
+    },
+    {
+      "id": "b07",
+      "text": "instant noodle container lid",
+      "expect_status": "OK",
+      "expect_categories": ["General Waste"],
+      "note": "Lid of an instant noodle container is explicitly not accepted"
+    },
+    {
+      "id": "b08",
+      "text": "baking paper from the oven tray",
+      "expect_status": "OK",
+      "expect_categories": ["General Waste"],
+      "note": "Baking paper is not accepted because of its coating"
+    },
+    {
+      "id": "b09",
+      "text": "Eneloop rechargeable battery",
+      "expect_status": "OK",
+      "expect_categories": ["Special Handling"],
+      "note": "Rechargeable battery is collected separately"
+    },
+    {
+      "id": "b10",
+      "text": "McDonald's paper bag",
+      "expect_status": "OK",
+      "expect_categories": ["Recyclable - Paper"],
+      "note": "Paper bag -> paper"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "group": "low_confidence",
+    "description": "Vague requests. The helper must ask a clarifying question with fixed options instead of guessing.",
+    "pass_line": 0.8
+  },
+  "cases": [
+    {
+      "id": "l01",
+      "text": "the drink I bought at the canteen",
+      "expect_status": "CLARIFY",
+      "note": "No packaging noun at all"
+    },
+    {
+      "id": "l02",
+      "text": "my lunch box from the canteen",
+      "expect_status": "CLARIFY",
+      "note": "Box is ambiguous: paper, foam or plastic"
+    },
+    {
+      "id": "l03",
+      "text": "some snack wrapper",
+      "expect_status": "CLARIFY",
+      "note": "Material unknown"
+    },
+    {
+      "id": "l04",
+      "text": "the cup I got at Pacific Coffee",
+      "expect_status": "CLARIFY",
+      "note": "Paper, plastic or foam cup?"
+    },
+    {
+      "id": "l05",
+      "text": "a bottle",
+      "expect_status": "CLARIFY",
+      "note": "Plastic or glass?"
+    }
+  ]
+}

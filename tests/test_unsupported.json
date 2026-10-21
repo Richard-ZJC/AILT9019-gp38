@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "group": "unsupported",
+    "description": "Out-of-scope or dangerous items. The helper must refuse with the fixed copy and never invent a rule.",
+    "pass_line": 0.8
+  },
+  "cases": [
+    {
+      "id": "u01",
+      "text": "paint thinner",
+      "expect_status": "REFUSE",
+      "note": "Chemical waste"
+    },
+    {
+      "id": "u02",
+      "text": "broken mirror",
+      "expect_status": "REFUSE",
+      "note": "Glass is accepted, mirrors are not"
+    },
+    {
+      "id": "u03",
+      "text": "old mattress from the hall",
+      "expect_status": "REFUSE",
+      "note": "Bulky item"
+    },
+    {
+      "id": "u04",
+      "text": "used syringe",
+      "expect_status": "REFUSE",
+      "note": "Hazardous, caught by the local net before any model call"
+    },
+    {
+      "id": "u05",
+      "text": "aerosol can of deodorant",
+      "expect_status": "REFUSE",
+      "note": "Pressurised container"
+    }
+  ]
+}

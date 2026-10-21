@@ -4,16 +4,130 @@ A brand-aware packaging sorting assistant: user enters a brand or product name, 
 
 ## Status
 
-Planning stage. The full framework — module layout, interface contracts, priority tiers, task tracking, and test policy — lives in [plan.md](./plan.md).
+Core pipeline implemented (T0–T8); optional modules are interface stubs. See [plan.md](./plan.md) §8 for the live progress table.
 
-## For the team
-
-`plan.md` is the single source of truth for this project. Read section 0 (priority tiers) first; every change must keep the progress table in section 8 up to date in the same commit.
+| Layer | State |
+|---|---|
+| Text input → components → rule → category + source | done |
+| Zero-cost exact keyword path (no API call) | done |
+| Dual-channel AI (OpenAI → Anthropic, 10 s failover) | done, needs a key |
+| Strict JSON template + validation + degradation | done |
+| Clarify with fixed options, 2-round server-side limit | done |
+| Refusal (out of scope / hazardous / both channels down) | done |
+| Web UI, single file, English | done |
+| Image upload, fuzzy match, SSE streaming, local memory | interfaces only (🟦) |
 
 ## Stack
 
 Python 3.10+ standard library only, plus a single-file HTML frontend. No build step, no third-party packages.
 
 ```bash
-python server.py     # then open http://localhost:8000
+python server.py            # real providers from config.json / env
+python server.py --mock     # deterministic offline provider, no key needed
+# then open http://localhost:8000
 ```
+
+## API key
+
+Copy the template and fill in the campus-provided key:
+
+```bash
+cp config.example.json config.json     # config.json is gitignored
+```
+
+```json
+{ "providers": ["openai", "anthropic"],
+  "openai":    { "api_key": "sk-...", "model": "gpt-4o-mini" },
+  "anthropic": { "api_key": "sk-ant-...", "model": "claude-3-5-haiku-latest" },
+  "timeout_seconds": 10 }
+```
+
+Environment variables win over the file: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_MODEL`, `ANTHROPIC_MODEL`, `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`.
+
+Without any key the server still starts: the keyword layer keeps answering, everything else returns `SERVICE_UNAVAILABLE` (never a guess).
+
+## Endpoints
+
+| Route | Body | Answer |
+|---|---|---|
+| `POST /identify` | `{"text": "...", "session_id": "optional"}` | full result JSON |
+| `POST /answer` | `{"session_id": "...", "choice": "bottle"}` | full result JSON |
+| `POST /identify/stream` | — | `501 {"status":"UNAVAILABLE"}` (reserved for T13) |
+| `GET /health` | — | `{"ok": true}` |
+
+Result shape (abridged):
+
+```json
+{ "status": "OK",
+  "session_id": "…",
+  "confidence": 0.93,
+  "product": { "name": "Vitasoy lemon tea", "brand": "Vitasoy" },
+  "components": [
+    { "part": "carton", "material": "tetra pak", "status": "MATCHED",
+      "category": "Recyclable - Tetra Pak", "rule_id": "beverage-carton",
+      "explanation": "Empty and rinse the carton, flatten it, then place it in the Tetra Pak slot…",
+      "source": { "name": "HKU re Campaign — Recycling 101 Photo Guide", "url": "https://wastereduction.hku.hk/photo-guide" },
+      "effective_date": "2026-10-21" } ],
+  "mode": "exact | ai | clarify | clarify_answer | refuse | service_unavailable" }
+```
+
+`status` is one of `OK`, `CLARIFY`, `REFUSE`, `SERVICE_UNAVAILABLE`. `mode` tells you which path produced the answer (`exact` = no model call at all).
+
+## Supported items
+
+16 rules, all traceable to the HKU *re* Campaign pages
+([Recycling 101 photo guide](https://wastereduction.hku.hk/photo-guide),
+[re Kiosk accepted items](https://www.wastereduction.hku.hk/re-kiosk)):
+
+| Rule id | Item | Category |
+|---|---|---|
+| `paper-general` | paper, newspaper, cardboard box, paper bag | Recyclable - Paper |
+| `pizza-box` | clean pizza box | Recyclable - Paper |
+| `paper-cup-sleeve` | take-away cup sleeve | Recyclable - Paper |
+| `baking-paper` | baking / parchment paper | General Waste |
+| `beverage-carton` | Tetra Pak, juice box, clean take-away coffee cup | Recyclable - Tetra Pak |
+| `metal-can` | aluminium can, tin can, metal box | Recyclable - Metal |
+| `glass-bottle` | glass bottle or jar | Recyclable - Glass |
+| `plastic-bottle` | PET / water / drink bottle | Recyclable - Plastic |
+| `plastic-cup-lid` | clean cup lid, bottle cap | Recyclable - Plastic |
+| `noodle-cup-bowl` | instant noodle cup / bowl | Recyclable - Plastic |
+| `noodle-cup-lid` | instant noodle container lid | General Waste |
+| `styrofoam-box` | cleaned styrofoam box or tray | Recyclable - Plastic |
+| `contact-lens-tray` | contact lens packaging tray | Recyclable - Plastic |
+| `plastic-packaging` | other clean plastic packaging | Recyclable - Plastic |
+| `rechargeable-battery` | rechargeable battery, power bank | Special Handling |
+| `out-of-scope` | chemicals, e-waste, furniture, medical waste… | Refuse |
+
+Notes:
+
+- `effective_date` is the date the rule was last verified against the linked page — replace it with the official policy date once the Estates Office document numbers are confirmed (see plan.md T1).
+- Glass and rechargeable batteries are collected at the re Kiosk (and, for glass, only at the Smart Recycling Bins at Central Podium Levels and Pine Court).
+
+## Verify
+
+```bash
+python tests/run_tests.py       # 10 brand + 5 low-confidence + 5 unsupported, plus zero-cost and clarify-flow checks
+python tests/test_ai_plugin.py  # 8 routing / schema / degradation checks, fake providers
+python tests/smoke_test.py      # boots the server, hits every route
+python tests/live_ai_test.py    # real key + network, skipped when no key
+```
+
+Pass line: every group ≥ 80 %, all plugin checks and all smoke checks green.
+
+## Layout
+
+```
+server.py            entry point (http.server, no framework)
+app/                 pipeline, session, matcher, adjudicator, ai_plugin/, refusal, fallback, explain
+data/rules.json      16 rules: id / keywords / parts / materials / category / source / effective_date
+data/features.json   the only legal source of clarifying options
+web/index.html       single-page English UI
+tests/               cases + harnesses (see above)
+```
+
+## Design rules we do not break
+
+- The AI identifies, it never decides a category. `app/match.py` is the only place a category is produced, and it only copies from `rules.json`.
+- If no rule matches, the answer is `REFUSE` with a fixed sentence — not a plausible guess.
+- Every answered component carries a source URL and the rule id it came from.
+- The 2-round clarifying limit is counted on the server, so a modified frontend cannot bypass it.

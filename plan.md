@@ -17,7 +17,7 @@
 
 ## 1. 项目一句话
 
-用户输入品牌/产品名（如 "Vitasoy lemon tea"、"Nissin cup noodles"）→ AI 识别产品及包装部件（bottle / cap / label / cup / wrapper…）→ 与**固定规则集（10–15 条官方校园回收规则）**匹配 → 输出「每个部件的回收分类 + 匹配规则 + 来源」；识别不了 → 反问包装特征；规则集没有 → **安全拒答，绝不编造**。
+用户输入品牌/产品名（如 "Vitasoy lemon tea"、"Nissin cup noodles"）→ AI 识别产品及包装部件（bottle / cap / label / cup / wrapper…）→ 与**固定规则集（16 条官方校园回收规则，来源 HKU *re* Campaign）**匹配 → 输出「每个部件的回收分类 + 匹配规则 + 来源」；识别不了 → 反问包装特征；规则集没有 → **安全拒答，绝不编造**。
 
 ## 2. 技术选型（目标：不同配置电脑都能直接用）
 
@@ -44,12 +44,16 @@ AILT9019-gp38/
 ├── README.md               # Setup / start / API key / sample questions / supported items（英文）
 ├── server.py               # 入口：本地 HTTP 服务器（标准库）
 ├── app/
+│   ├── config.py           # 🟥 config.json 加载 + 环境变量覆盖
+│   ├── factory.py          # 🟥 组装 pipeline（唯一知道所有模块的地方）
 │   ├── session.py          # 🟥 会话状态唯一持有者：session_id / 轮次 / 上下文 / 待答问题
 │   ├── pipeline.py         # 🟥 编排：0成本层 → AI 层 → match 唯一裁决 → 输出
 │   ├── ai_plugin/
 │   │   ├── router.py       # 🟥 通道路由（provider 列表注入，10s 首 token 超时，超时不重试）
 │   │   ├── openai_client.py    # 🟥 非流式；🟦 stream=True 分支
 │   │   ├── anthropic_client.py # 🟥 同上
+│   │   ├── base.py         # 🟥 urllib POST / SSE，错误归一化
+│   │   ├── mock_client.py  # 🟥 离线确定性子（无 key 时的 demo/测试替身）
 │   │   └── schema.py       # 🟥 响应模版 + 校验（含 options ⊆ features.json、id ∈ rules.json）
 │   ├── rules_loader.py     # 🟥 加载 + 校验 rules.json（缺字段 fail fast）
 │   ├── matcher.py          # 🟥 精确关键词匹配（0 成本层第一级）
@@ -61,7 +65,7 @@ AILT9019-gp38/
 │   ├── fuzzy.py            # 🟦 选作：difflib 模糊识别，未实现返回 None
 │   └── memory.py           # 🟦 选作：本地记忆落盘，未实现为 no-op
 ├── data/
-│   ├── rules.json          # 10–15 条规则：id / keywords / material / category / source / effective_date
+│   ├── rules.json          # 16 条规则：id / keywords / parts / materials / category / source / effective_date / action
 │   ├── features.json       # 反问选项唯一来源（bottle/cup/bag/box/wrapper/can/jar…）
 │   └── memory/             # 🟦 运行时生成（.gitignore）
 ├── web/
@@ -209,27 +213,41 @@ AILT9019-gp38/
 
 | ID | 任务 | 层 | 对应 Proposal | 状态 | 测试用例 | 备注 |
 |---|---|---|---|---|---|---|
-| T0 | 仓库骨架（目录 / .gitignore / config.example） | 🟥 | W5 | ⬜ | smoke_test | |
-| T1 | rules.json 初版（10–15 条，英文，含来源+日期+action） | 🟥 | W5 | ⬜ | rules_loader 校验 | 需团队确认官方文件 |
-| T2 | rules_loader.py（含 REFUSE 条目校验） | 🟥 | W6–8 | ⬜ | 校验用例 | |
-| T2a | session.py（session_id / 轮次 / 上下文 / 过期） | 🟥 | W6–8 | ⬜ | 测试⑧ | 2 轮上限在服务端 |
-| T3 | matcher.py + match.py（唯一裁决口） | 🟥 | W6–8 | ⬜ | 品牌组 + 0成本计数 | |
-| T4 | openai_client.py + anthropic_client.py（非流式） | 🟥 | W6–8 | ⬜ | 测试① | 学校 key |
-| T4a | router.py（注入 providers / 10s 超时不重试 / failover） | 🟥 | W6–8 | ⬜ | 测试②③⑤ | |
-| T4b | schema.py（模版 + options/source_hint 校验 + 降级） | 🟥 | W6–8 | ⬜ | 测试①④⑥⑦ | |
-| T4c | pipeline.py 编排（0成本→AI→裁决→输出） | 🟥 | W6–8 | ⬜ | run_tests | |
-| T4d | identify.py（合并解释的 prompt） | 🟥 | W6–8 | ⬜ | 品牌组 | 1 次调用出解释 |
-| T5 | fallback.py 固定选项反问 + 2 轮上限 | 🟥 | W6–8 | ⬜ | 低置信组 | |
-| T6 | refusal.py（本地 hazards + 未匹配 + 全挂） | 🟥 | W6–8 | ⬜ | 不支持组 | |
-| T7 | server.py + web/index.html（英文 UI，非流式） | 🟥 | W6–8 | ⬜ | smoke_test | 结果卡片 + 来源链接 |
-| T8 | README（英文：setup / key / samples / supported） | 🟥 | W6–8 | ⬜ | — | 含规则来源与日期 |
-| T9 | 正式评测（10+5+5）并修错 | 🟥 | W9–10 | ⬜ | run_tests | 全量回归 |
+| T0 | 仓库骨架（目录 / .gitignore / config.example） | 🟥 | W5 | ✅ | smoke_test | 目录齐全，`python server.py --mock` 可跑 |
+| T1 | rules.json 初版（10–15 条，英文，含来源+日期+action） | 🟥 | W5 | ✅ | rules_loader 校验 | 实为 **16 条**（HKU photo guide 组件粒度更细）；来源已核对 wastereduction.hku.hk |
+| T2 | rules_loader.py（含 REFUSE 条目校验） | 🟥 | W6–8 | ✅ | 校验用例 | fail-fast：缺字段/空来源/未知 category 直接退出 |
+| T2a | session.py（session_id / 轮次 / 上下文 / 过期） | 🟥 | W6–8 | ✅ | 测试⑧ | 2 轮上限在服务端，30 分钟过期 |
+| T3 | matcher.py + match.py（唯一裁决口） | 🟥 | W6–8 | ✅ | 品牌组 + 0成本计数 | 0 成本命中 → API 调用计数 = 0 |
+| T4 | openai_client.py + anthropic_client.py（非流式） | 🟥 | W6–8 | ✅ | 测试① | 代码完成；**真 key 未实测**（见 T9） |
+| T4a | router.py（注入 providers / 10s 超时不重试 / failover） | 🟥 | W6–8 | ✅ | 测试②③⑤ | 线程硬超时，超时只 failover |
+| T4b | schema.py（模版 + options/source_hint 校验 + 降级） | 🟥 | W6–8 | ✅ | 测试①④⑥⑦ | 非法 hint→null；越界 option→固定清单 |
+| T4c | pipeline.py 编排（0成本→AI→裁决→输出） | 🟥 | W6–8 | ✅ | run_tests | 四态 + `mode` 字段标明路径 |
+| T4d | identify.py（合并解释的 prompt） | 🟥 | W6–8 | ✅ | 品牌组 | 1 次调用出解释，失败回退规则原文 |
+| T5 | fallback.py 固定选项反问 + 2 轮上限 | 🟥 | W6–8 | ✅ | 低置信组 | 选项唯一来源 features.json（10 项） |
+| T6 | refusal.py（本地 hazards + 未匹配 + 全挂） | 🟥 | W6–8 | ✅ | 不支持组 | 四类拒答话术集中一处 |
+| T7 | server.py + web/index.html（英文 UI，非流式） | 🟥 | W6–8 | ✅ | smoke_test | 9/9 冒烟通过；`/identify/stream` 501 |
+| T8 | README（英文：setup / key / samples / supported） | 🟥 | W6–8 | ✅ | — | 含 16 条规则来源表与日期口径 |
+| T9 | 正式评测（10+5+5）并修错 | 🟥 | W9–10 | 🔶 | run_tests | 离线（mock）20/20 全绿；**待真 key 跑 `--live`** |
 | T10 | Demo + 文档定稿 | 🟥 | W11–12 | ⬜ | run_tests | 对齐 W12 验收 |
 | T11 | 🟦 图片上传 + 多模态识别 | 🟦 | should | ⬜ | 新增图例用例 | 接口已在 T4d 预留 |
 | T12 | 🟦 fuzzy.py difflib 模糊识别 | 🟦 | should | ⬜ | 相似词用例 | 未实现返回 None |
 | T13 | 🟦 SSE 流式 + 异步双路（threading） | 🟦 | should | ⬜ | 流式/进度事件 | `/identify/stream` 501→200 |
 | T14 | 🟦 memory.py 本地记忆落盘 | 🟦 | should | ⬜ | 落盘/关闭开关 | 与 proposal 红线同步 |
 | T15 | 🟦 AI 搜索 + AI 动态反问文案 | 🟦 | should | ⬜ | 搜索标记用例 | `search_used` |
+
+### 8.1 本轮实现记录（与计划的偏差，需团队确认）
+
+| 项 | 计划 | 实际 | 原因 |
+|---|---|---|---|
+| 规则条数 | 10–15 | **16** | HKU photo guide 是组件级（杯身/杯盖/杯套分开），10 条压不住；超出 1 条 |
+| 规则 `effective_date` | 官方生效日 | **核对日 2026-10-21** | 官网未标注生效日；已写入 `meta.note`，等 Estates Office 文件号确认后替换 |
+| 新增 `parts` / `materials` / `instruction` 字段 | 无 | 有 | `match.py` 需要部件+材质做裁决；`instruction` 是解释的兜底文本 |
+| 结果新增 `mode` 字段 | 无 | 有 | 前端/评测要区分 exact / ai / clarify / refuse，才能验证「0 成本命中不发 API」 |
+| mock provider | 无 | `--mock` 与 `providers:["mock"]` | 无 key 的电脑要能跑冒烟与 demo；它只替代模型，pipeline/schema/裁决全部照跑 |
+| 低置信阈值 | 未量化 | 组件最高置信度 < 0.5 → CLARIFY | 给「宁可反问」一条可执行判据 |
+| 部分命中 | 未规定 | 至少 1 个部件命中 → OK，其余部件标 `UNCOVERED` | 整包拒答会丢有效信息；未命中部件仍显示固定拒答话术 |
+
+**验证状态**：`run_tests.py` 20/20（mock）、`test_ai_plugin.py` 8/8、`smoke_test.py` 9/9；`live_ai_test.py` 因无学校 key **未执行**——T9 的真 key 实测仍待补。
 
 ## 9. 里程碑（对齐 proposal timeline）
 
