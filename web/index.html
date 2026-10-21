@@ -59,7 +59,7 @@
   .product { font-size: 17px; font-weight: 650; margin: 0 0 4px; }
   .comp { border-top: 1px solid var(--line); padding: 13px 0 5px; }
   .comp:first-of-type { border-top: 0; }
-  .comp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .comp-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .comp-name { font-weight: 600; }
   .comp-name span { color: var(--muted); font-weight: 400; }
   .tag { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; }
@@ -167,7 +167,7 @@ function componentCard(item) {
   const body = item.status === "MATCHED"
     ? `<p>${escapeHtml(item.explanation || item.instruction || "")}</p>` +
       (item.source
-        ? `<div class="src"><a href="${escapeHtml(item.source.url)}" target="_blank" rel="noopener">source ↗</a> · ${escapeHtml(item.source.name)}</div>`
+        ? `<div class="src"><a href="${escapeHtml(item.source.url)}" target="_blank" rel="noopener">${escapeHtml(String(item.source.name).split(" (")[0])} ↗</a></div>`
         : "")
     : `<p>${escapeHtml(item.message || "Not covered by the current rule set.")}</p>`;
   return `<div class="comp"><div class="comp-head"><span class="comp-name">${name}</span>${tag}</div>${body}</div>`;
