@@ -204,6 +204,7 @@ AILT9019-gp38/
 
 - 分支：`main`（稳定，测试全绿才合入）+ `feat/<任务ID>-<名称>`
 - commit：`[T3] feat: matcher with zero-API fast path`；进度表更新放同一 commit
+- **改完即存**：每个修改批次结束就 `git add` + commit（+ push），不留未提交的工作区；一次 commit 只做一件事，便于 `git revert`
 - 换电脑：先 `pull` 再改；plan.md 冲突手动合并（唯一事实源）
 - plan.md 定稿后 push 到仓库根目录
 
