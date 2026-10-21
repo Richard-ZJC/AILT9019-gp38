@@ -122,7 +122,19 @@ def zero_cost_check(rules, features) -> bool:
         "typo handling\n'Trea' -> delegated to the model for re-judgement "
         f"(api calls={counter.calls})  [{'PASS' if fuzzy_ok else 'FAIL'}]"
     )
-    return ok and fuzzy_ok
+
+    overlap = pipeline.identify("ramen")
+    overlap_ok = (
+        overlap["status"] == "OK"
+        and overlap["mode"] == "fuzzy"
+        and counter.calls == 1  # still zero additional calls: word-overlap answered locally
+        and bool(overlap.get("notes"))
+    )
+    print(
+        "word overlap\n'ramen' -> "
+        f"{overlap['status']}/{overlap['mode']} {categories_of(overlap)} (api calls={counter.calls})  [{'PASS' if overlap_ok else 'FAIL'}]"
+    )
+    return ok and fuzzy_ok and overlap_ok
 
 
 def clarify_flow_check(pipeline: Pipeline) -> bool:

@@ -20,8 +20,9 @@
     {
       "id": "l03",
       "text": "some snack wrapper",
-      "expect_status": "CLARIFY",
-      "note": "Material unknown"
+      "expect_status": "OK",
+      "expect_categories": ["Recyclable - Plastic"],
+      "note": "'wrapper' is distinctive (one rule only) - the word-overlap layer answers instead of clarifying"
     },
     {
       "id": "l04",

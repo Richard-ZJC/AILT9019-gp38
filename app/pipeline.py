@@ -79,7 +79,7 @@ class Pipeline:
                 model="none",
                 explanations={},
                 product={"name": query, "brand": ""},
-                notes=[f"matched by typo correction: {hit.corrected}"] if hit.fuzzy else (),
+                notes=[f"loose match: {hit.corrected}"] if hit.fuzzy else (),
             )
 
         # 1. AI identification

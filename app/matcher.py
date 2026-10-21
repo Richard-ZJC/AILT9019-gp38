@@ -38,7 +38,8 @@ class Match:
     keyword: str
     score: int
     fuzzy: bool = False
-    corrected: str = ""  # query word -> keyword word, shown when fuzzy
+    corrected: str = ""  # human-readable loose-match note, shown when fuzzy
+    kind: str = "exact"  # "exact" | "typo" | "overlap"
 
 
 def _levenshtein(a: str, b: str) -> int:
@@ -63,22 +64,82 @@ def _levenshtein(a: str, b: str) -> int:
 
 _FUZZY_MAX_DISTANCE = 2
 _FUZZY_MIN_LENGTH = 4
+_OVERLAP_MIN_LENGTH = 3
+_STOPWORDS = {"the", "and", "with", "from", "for", "that", "this", "have", "just"}
+
+
+def _keyword_word_index(rules: Sequence[Rule]) -> dict[str, set[str]]:
+    """Word -> rule ids whose keywords contain that word (whole-word)."""
+    index: dict[str, set[str]] = {}
+    for rule in rules:
+        for keyword in rule.keywords:
+            for word in normalise(keyword).split():
+                index.setdefault(word, set()).add(rule.id)
+    return index
+
+
+def _overlap_match(words: Sequence[str], rules: Sequence[Rule]) -> Match | None:
+    """'nissin' alone -> the rule whose keyword phrase contains it.
+
+    A query word that appears as a whole word inside a keyword phrase is a
+    partial hit - but only worth answering when the word is distinctive:
+    if the same word shows up in several rules' keywords ('bottle' lives in
+    plastic bottle AND glass bottle) the choice is a guess, so return None
+    and let the AI layer re-judge or clarify instead.
+    """
+    index = _keyword_word_index(rules)
+    word_rules: dict[str, set[str]] = {}
+    for word in words:
+        if word in index and len(index[word]) == 1:
+            word_rules[word] = index[word]
+
+    if not word_rules:
+        return None
+    rule_ids = {next(iter(ids)) for ids in word_rules.values()}
+    if len(rule_ids) != 1:
+        # two distinctive words disagree (e.g. 'coffee sleeve') - ambiguous
+        return None
+
+    rule_id = rule_ids.pop()
+    rule = next(rule for rule in rules if rule.id == rule_id)
+    hit_word, _ = max(word_rules.items(), key=lambda item: len(item[0]))
+    keyword = next(
+        (kw for kw in rule.keywords if hit_word in normalise(kw).split()),
+        rule.keywords[0],
+    )
+    return Match(
+        rule=rule,
+        keyword=keyword,
+        score=1,
+        fuzzy=True,
+        corrected=f'"{hit_word}" matched one word of "{keyword}"',
+        kind="overlap",
+    )
 
 
 def fuzzy_match(text: str, rules: Sequence[Rule]) -> Match | None:
-    """Typo rescue, still zero-cost: 'bottel' -> 'plastic bottle'.
+    """Loose matching, still zero-cost. Two stages:
 
-    Deliberately conservative, because a wrong auto-correction is worse
-    than none:
-    - only short queries (<= 3 words) look like typos; full sentences go
-      to the AI layer, which can re-judge the whole input;
-    - a query word matches a keyword word at Damerau-Levenshtein distance
-      1 (words up to 5 chars) or 2 (longer words) - distance 0 is the
-      exact layer's business and must not steal underspecified queries.
+    1. word overlap - 'nissin' -> 'nissin cup' (distinctive words only;
+       words shared by several rules are ambiguous and go to the AI layer);
+    2. typo rescue - 'bottel' -> 'plastic bottle' via Damerau-Levenshtein,
+       short queries (<= 3 words) only; distance 0 is the exact layer's
+       business and must not steal underspecified queries.
     """
     all_words = normalise(text).split()
     if not all_words or len(all_words) > 3:
         return None
+
+    overlap_words = [
+        word for word in all_words
+        if len(word) >= _OVERLAP_MIN_LENGTH and word not in _STOPWORDS
+    ]
+    overlap = _overlap_match(overlap_words, rules) if overlap_words else None
+    if overlap is not None:
+        return overlap
+
+    index = _keyword_word_index(rules)
+
     words = [word for word in all_words if len(word) >= _FUZZY_MIN_LENGTH]
     if not words:
         return None
@@ -97,10 +158,14 @@ def fuzzy_match(text: str, rules: Sequence[Rule]) -> Match | None:
                     # "plastic bottle" and steal underspecified queries.
                     if not 1 <= distance <= limit:
                         continue
+                    # same distinctiveness rule as overlap: correcting into a
+                    # word that several rules share ('bottle') is a coin toss
+                    if len(index.get(keyword_word, ())) != 1:
+                        continue
                     if distance < best_distance:
                         best_distance = distance
                         best = Match(rule=rule, keyword=keyword, score=1, fuzzy=True,
-                                     corrected=f"{query_word} -> {keyword}")
+                                     corrected=f"{query_word} -> {keyword}", kind="typo")
     return best
 
 
