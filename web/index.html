@@ -82,9 +82,19 @@
   .banner strong { display: block; margin-bottom: var(--s1); font-size: 16px; }
   .banner.refuse { background: var(--warn-soft); border-color: #f3c9c5; color: #7a1d17; }
   .banner.muted  { background: var(--panel);   border-color: var(--line); color: var(--ink); }
-  .options { display: flex; flex-wrap: wrap; gap: 10px; margin-top: var(--s3); }
+  /* clarify options: one swipeable row instead of a wall of buttons */
+  .options {
+    display: flex; gap: 10px; margin-top: var(--s3);
+    overflow-x: auto; scroll-snap-type: x proximity;
+    padding: 2px 2px 10px; -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  }
+  .options::-webkit-scrollbar { height: 4px; }
+  .options::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+  .options::-webkit-scrollbar-track { background: transparent; }
   .options button {
-    padding: 12px 18px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
+    flex: 0 0 auto; scroll-snap-align: start; min-height: 44px;
+    padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink);
   }
   .options button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .error { color: var(--warn); font-size: 14px; margin-top: var(--s3); }
