@@ -1,21 +1,16 @@
 {
   "meta": {
-    "note": "Single source of truth for clarifying-question options. The AI may only pick from these ids; schema.py rejects anything else.",
-    "verified_on": "2026-10-21"
+    "note": "Single source of truth for clarifying-question options. The AI may only pick from these ids; schema.py rejects anything else. Kept small on purpose: seven choices, one swipeable row.",
+    "verified_on": "2026-10-22"
   },
   "question": "Which packaging do you see on the product?",
   "options": [
     { "id": "bottle", "label": "Plastic bottle", "part": "bottle", "material": "plastic" },
     { "id": "glass-bottle", "label": "Glass bottle or jar", "part": "bottle", "material": "glass" },
     { "id": "carton", "label": "Carton / Tetra Pak", "part": "carton", "material": "tetra pak" },
+    { "id": "cup-paper", "label": "Paper cup (coffee cup)", "part": "cup", "material": "paper" },
     { "id": "cup", "label": "Plastic or foam cup", "part": "cup", "material": "plastic" },
-    { "id": "cup-paper", "label": "Paper cup / take-away coffee cup", "part": "cup", "material": "paper" },
     { "id": "can", "label": "Metal can", "part": "can", "material": "aluminium" },
-    { "id": "box", "label": "Cardboard box", "part": "box", "material": "cardboard" },
-    { "id": "box-foam", "label": "Styrofoam box or tray", "part": "box", "material": "styrofoam" },
-    { "id": "bag", "label": "Paper bag", "part": "bag", "material": "paper" },
-    { "id": "tray", "label": "Plastic tray or blister", "part": "tray", "material": "plastic" },
-    { "id": "lid", "label": "Lid or cap", "part": "lid", "material": "plastic" },
-    { "id": "battery", "label": "Rechargeable battery", "part": "battery", "material": "lithium" }
+    { "id": "other", "label": "None of these", "part": "other", "material": "none" }
   ]
 }
