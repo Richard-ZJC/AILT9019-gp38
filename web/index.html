@@ -346,8 +346,12 @@ function render(payload) {
   }
 
   if (payload.status === "REFUSE") {
-    resultEl.innerHTML = `<div class="banner refuse">
-      <strong>Not covered</strong>${escapeHtml(payload.message)}
+    // "Not covered" is a red flag - the user brought something the rules do
+    // not handle. An item that simply has no packaging is not a mistake, so it
+    // gets a neutral card and a plain title.
+    const unpackaged = /not_packaging|unpacked choice/.test(payload.reason || "");
+    resultEl.innerHTML = `<div class="banner ${unpackaged ? "muted" : "refuse"}">
+      <strong>${unpackaged ? "Nothing to recycle" : "Not covered"}</strong>${escapeHtml(payload.message)}
     </div>`;
     return;
   }
