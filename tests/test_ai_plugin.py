@@ -163,20 +163,96 @@ def test_options_out_of_range() -> None:
     check("7 schema: invented option -> fixed option list", ok, str(payload.clarify))
 
 
-# ---------------------------------------------------------------- 8. clarify budget
+# ------------------------------------------------- 8. two questions, then decide
 
-def test_third_clarify_refused() -> None:
-    pipeline = Pipeline(RULES, FEATURES, router=Router([MockClient(RULES, FEATURES)], timeout=5))
+CLARIFY_PAYLOAD = good_payload(
+    status="CLARIFY",
+    confidence=0.15,
+    product={"name": "the thing from the canteen", "brand": ""},
+    components=[],
+    source_hint=None,
+    clarify={"question": "Which packaging do you see?", "options": list(FEATURES.ids[:6])},
+)
+
+
+def test_third_round_commits_to_a_conclusion() -> None:
+    """Two questions is the budget - but the budget must never end in a shrug.
+
+    "I still cannot tell, check it yourself" is a refusal wearing the mask of a
+    conclusion. The third round spends one more model call that is forbidden to
+    ask again, and reports its guess as a guess.
+    """
+    committed = good_payload(
+        confidence=0.45,
+        product={"name": "canteen drink", "brand": ""},
+        components=[{"part": "carton", "material": "tetra pak", "confidence": 0.45}],
+        source_hint="beverage-carton",
+    )
+    client = FakeClient("openai", [CLARIFY_PAYLOAD, CLARIFY_PAYLOAD, CLARIFY_PAYLOAD, committed])
+    pipeline = Pipeline(RULES, FEATURES, router=Router([client], timeout=5))
     first = pipeline.identify("the thing from the canteen")
     second = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
     third = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
     ok = (
         first["status"] == "CLARIFY"
         and second["status"] == "CLARIFY"
-        and third["status"] == "REFUSE"
-        and "two rounds" in third["message"]
+        and third["status"] == "OK"
+        and third["mode"] == "best_guess"
+        and client.calls == 4  # 3 rounds + 1 commit
+        and third["confidence"] <= 0.6  # a guess is never dressed up as certain
     )
-    check("8 session: third clarifying question is refused", ok, f"{first['status']}/{second['status']}/{third['status']}")
+    check("8 session: third round commits instead of refusing", ok, f"{first['status']}/{second['status']}/{third['status']} mode={third.get('mode')}")
+
+
+def test_commit_survives_a_model_that_asks_again() -> None:
+    """Even if the model ignores the 'do not ask' instruction, we still decide."""
+    client = FakeClient("openai", [CLARIFY_PAYLOAD])
+    pipeline = Pipeline(RULES, FEATURES, router=Router([client], timeout=5))
+    first = pipeline.identify("the thing from the canteen")
+    second = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
+    third = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
+    ok = third["status"] == "OK" and third["mode"] == "best_guess"
+    check(
+        "8b session: a committing model that still says CLARIFY -> leading option answered",
+        ok,
+        f"{third['status']} mode={third.get('mode')}",
+    )
+
+
+def test_commit_survives_a_dead_model() -> None:
+    """No model at the deciding moment: the leading option still answers.
+
+    A down model must not turn a two-question conversation into
+    "service unavailable" either - the user already told us enough.
+    """
+    # The two questions succeed; only the final commit call dies.
+    client = FakeClient("openai", [CLARIFY_PAYLOAD, CLARIFY_PAYLOAD, CLARIFY_PAYLOAD, TimeoutError("down")])
+    pipeline = Pipeline(RULES, FEATURES, router=Router([client], timeout=0.2))
+    first = pipeline.identify("the thing from the canteen")
+    second = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
+    third = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
+    ok = third["status"] == "OK" and third["mode"] == "best_guess"
+    check(
+        "8c session: model dies while committing -> leading option still answered",
+        ok,
+        f"{third['status']} mode={third.get('mode')}",
+    )
+
+
+def test_commit_with_no_usable_signal_still_gives_a_move() -> None:
+    """The last resort: nothing resolves, so hand over one concrete action.
+
+    Reachable when the pending question came from a product search: its options
+    are product names, not packaging feature ids, so none of them maps to a rule.
+    """
+    pipeline = Pipeline(RULES, FEATURES, router=Router([FakeClient("openai", [CLARIFY_PAYLOAD])], timeout=5))
+    session = pipeline.sessions.get_or_create()
+    session.add_turn("user", "lemon")
+    session.remember(last_text="lemon")
+    result = pipeline._commit(session, {"options": ["Lemon Black Tea", "Lemon Mayonnaise"]}, None)
+    message = result.get("message") or ""
+    ok = result["status"] == "REFUSE" and "re Kiosk" in message and "check it yourself" not in message
+    check("8d last resort: no resolvable option -> one concrete next move, never a shrug", ok, message[:70])
 
 
 def test_single_option_clarify_expanded() -> None:
@@ -548,7 +624,10 @@ def main() -> int:
     test_timeout_no_retry()
     test_invalid_source_hint_nulled()
     test_options_out_of_range()
-    test_third_clarify_refused()
+    test_third_round_commits_to_a_conclusion()
+    test_commit_survives_a_model_that_asks_again()
+    test_commit_survives_a_dead_model()
+    test_commit_with_no_usable_signal_still_gives_a_move()
     test_single_option_clarify_expanded()
     test_brand_payload_keeps_products()
     test_brand_disambiguation_flow()

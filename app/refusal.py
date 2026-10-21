@@ -17,10 +17,6 @@ NOT_PACKAGING = (
     "If it came in a wrapper, bottle or cup, tell me about that packaging instead."
 )
 SERVICE_DOWN = "This request involves sensitive information and cannot be processed right now."
-TOO_MANY_QUESTIONS = (
-    "I still cannot identify the packaging after two rounds of questions. "
-    "Please check the item yourself, or take it to the re Kiosk counter for help."
-)
 HAZARD = (
     "This item looks hazardous or bulky, which is outside the campus packaging recycling rules. "
     "Do not put it in a recycling bin - contact the Estates Office or a specialist collection point."
@@ -55,7 +51,6 @@ def payload(kind: str, reason: str, **extra: Any) -> dict[str, Any]:
         "out_of_scope": OUT_OF_SCOPE,
         "not_packaging": NOT_PACKAGING,
         "service_unavailable": SERVICE_DOWN,
-        "too_many_questions": TOO_MANY_QUESTIONS,
         "hazard": HAZARD,
     }.get(kind, OUT_OF_SCOPE)
     body: dict[str, Any] = {

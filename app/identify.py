@@ -67,6 +67,7 @@ def build_messages(
     rules: Sequence[Rule],
     features: FeatureSet,
     correction: str | None = None,
+    commit: str | None = None,
 ) -> list[dict[str, str]]:
     candidates = top_candidates(text, rules, top_k=3)
     candidate_block = "\n\n".join(rule.prompt_block() for rule in candidates) or "(no keyword candidate - rely on the RULE INDEX)"
@@ -79,9 +80,15 @@ def build_messages(
         + "\n\nMOST LIKELY RULES FOR THIS QUERY (write one explanation sentence for each, keyed by rule id):\n"
         + candidate_block
     )
+    user_text = text
+    if commit is not None:
+        system += COMMIT_INSTRUCTION
+        told = (commit or "").strip()
+        if told:
+            user_text = f"{text}\n\nWhat the user has already told you:\n{told}"
     messages = [
         {"role": "system", "content": system},
-        {"role": "user", "content": text},
+        {"role": "user", "content": user_text},
     ]
     if correction:
         messages.append({"role": "assistant", "content": "(previous answer was rejected)"})
@@ -134,6 +141,22 @@ CORRECTION = (
     "matching the schema exactly, with no markdown fences and no commentary."
 )
 
+COMMIT_INSTRUCTION = """
+
+FINAL ROUND - DECIDE, DO NOT ASK AGAIN.
+You have already asked twice and could not pin the packaging down. A third
+question is not allowed. Read the query together with what the user already
+told you, then commit to the single most defensible answer:
+- If the item is normally packaged, reply status "OK" with 1-3 components
+  (part + material + confidence). Choose the most common packaging for that kind
+  of product and set confidence honestly (0.3-0.6). A best guess beats a shrug.
+- If the query names a whole item that is normally sold loose (a fruit, a
+  vegetable, loose tea or coffee), reply status "REFUSE" with "reason": "not_packaging".
+- If the item is hazardous or clearly outside the rule set, reply "REFUSE" with
+  "reason": "out_of_scope".
+Never reply "CLARIFY" or "BRAND" here.
+"""
+
 DISAMBIG_PROMPT = """You help "Campus Recycling Helper" narrow down a short query (a brand, a product
 line, or a bare food/object word). Web search is ENABLED for this request - use
 it. Do NOT assume the item is packaged: the user may be holding the bare item.
@@ -178,7 +201,20 @@ class Identifier:
         self.search_router = search_router
 
     def run(self, text: str, image: str | None = None) -> Identification:
-        messages = build_messages(text, self.rules, self.features)
+        return self._resolve(build_messages(text, self.rules, self.features), text, image)
+
+    def commit(self, text: str, told: str = "") -> Identification:
+        """Last round: the model may not ask again, it has to decide."""
+        messages = build_messages(text, self.rules, self.features, commit=told)
+        return self._resolve(messages, text, commit=told)
+
+    def _resolve(
+        self,
+        messages: list[dict[str, str]],
+        text: str,
+        image: str | None = None,
+        commit: str | None = None,
+    ) -> Identification:
         result: RouterResult = self.router.complete(messages, image=image)
         parse_attempts = 0
         notes: list[str] = []
@@ -218,7 +254,7 @@ class Identifier:
                     notes=notes,
                 )
 
-            messages = build_messages(text, self.rules, self.features, correction=CORRECTION)
+            messages = build_messages(text, self.rules, self.features, correction=CORRECTION, commit=commit)
             result = self.router.complete(messages, image=image)
 
     def disambiguate(self, brand_text: str) -> list[dict[str, str]]:

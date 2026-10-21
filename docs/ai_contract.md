@@ -17,7 +17,7 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 | `search_used` | `CLARIFY/disambiguate` carries `true`; `OK` carries the model's own flag | |
 | `source_hint` | rule id or null | validated against rules.json |
 | `raw_model` | `none / openai / anthropic` | |
-| `mode` | `exact / fuzzy / ai / clarify / clarify_answer / refuse / service_unavailable` | |
+| `mode` | `exact / fuzzy / ai / clarify / clarify_answer / best_guess / refuse / service_unavailable` | |
 | `degraded` | schema repaired the model output | |
 
 ## Rules that keep it fixed
@@ -25,7 +25,7 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 1. **Clarify payload**: built ONLY by `fallback.build` (packaging) or `fallback.build_products` (brand disambiguation); schema.py delegates; pipeline never re-assembles.
 2. **Envelope**: built ONLY by `pipeline._base_body`; branches `update()` their own keys on top.
 3. **Model output is never trusted**: `schema.validate` repairs or downgrades; a malformed answer can never become a category.
-4. **Refusal structure is fixed, copy is layered**: `refusal.py` stays the single source of the five fixed copies (`out_of_scope`, `not_packaging`, `hazard`, `too_many_questions`, `service_unavailable`). For model-driven REFUSE only, the model may write its own `message` (cleaned + capped by schema) which replaces the fixed copy; a missing/invalid message falls back to `refusal.py`. Local refusals (hazard net, clarify budget, service down) never use model text.
+4. **Refusal structure is fixed, copy is layered**: `refusal.py` stays the single source of the four fixed copies (`out_of_scope`, `not_packaging`, `hazard`, `service_unavailable`). For model-driven REFUSE only, the model may write its own `message` (cleaned + capped by schema) which replaces the fixed copy; a missing/invalid message falls back to `refusal.py`. Local refusals (hazard net, service down) never use model text.
 5. **Options**: packaging clarify uses only ids from `features.json`; anything else is replaced with the fixed list.
 
 ## Brand disambiguation (web search)
@@ -34,6 +34,7 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 - A chip click re-identifies the product name (frontend calls `/identify`), it is not an `/answer`.
 - Loop guard: `session.context.disambiguated` stores the **query text**, and only the identical query degrades to the ordinary packaging clarify. A different word in the same session is not a loop.
 - Search failure does **not** degrade to the packaging question: the card keeps a single honest option, `"<query> (no packaging)"`. Asking "which packaging do you see?" would assume packaging the user may not have.
+- **Question budget must conclude, not refuse**: after two clarify rounds a third question is forbidden. The pipeline instead calls `Identifier.commit`, a final model call that is told it may not ask again and must pick the most likely packaging (`OK`, `mode = "best_guess"`, confidence <= 0.6, with a "check before you sort" note). If the model still fails, the leading clarify option is resolved deterministically; only if that also fails does it return a neutral `best_effort` banner. There is no "I still cannot tell - check it yourself" refusal.
 - Candidate hygiene (deterministic, in `pipeline._with_unpacked_option`): duplicates are dropped; an `"X (no packaging)"` entry is removed when the same `X` is also listed as packaged, because one product cannot be both.
 - **No packaging assumption**: the search prompt must include an unpackaged candidate (`packaging: "none"`, e.g. "Whole lemon (no packaging)") FIRST whenever the query plausibly names a bare item. Its chip sends the deterministic gate text `no packaging: <item>` -> `REFUSE`/`not_packaging` with a templated message (`refusal.not_packaging_item`), no model call. Hazards still win over it.
 

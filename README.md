@@ -1,6 +1,6 @@
 # AILT9019-gp38 — Campus Recycling Helper
 
-A brand-aware packaging sorting assistant: user enters a brand or product name, the app identifies its packaging components, matches them against a fixed set of published campus recycling rules, and returns the category with a visible source. If a rule does not match, it refuses rather than guessing.
+A brand-aware packaging sorting assistant: user enters a brand or product name, the app identifies its packaging components, matches them against a fixed set of published campus recycling rules, and returns the category with a visible source. A category can only come from a rule; when the packaging is ambiguous it asks, and after two questions it commits to its best guess labelled as a guess instead of refusing.
 
 ## Status
 
@@ -101,7 +101,7 @@ Result shape (abridged):
       "explanation": "Empty and rinse the carton, flatten it, then place it in the Tetra Pak slot…",
       "source": { "name": "HKU re Campaign — Recycling 101 Photo Guide", "url": "https://wastereduction.hku.hk/photo-guide" },
       "effective_date": "2026-10-21" } ],
-  "mode": "exact | ai | clarify | clarify_answer | refuse | service_unavailable" }
+  "mode": "exact | fuzzy | ai | clarify | clarify_answer | best_guess | refuse | service_unavailable" }
 ```
 
 `status` is one of `OK`, `CLARIFY`, `REFUSE`, `SERVICE_UNAVAILABLE`. `mode` tells you which path produced the answer (`exact` = no model call at all).
@@ -165,6 +165,6 @@ tests/               cases + harnesses (see above)
 ## Design rules we do not break
 
 - The AI identifies, it never decides a category. `app/match.py` is the only place a category is produced, and it only copies from `rules.json`.
-- If no rule matches, the answer is `REFUSE` with a fixed sentence — not a plausible guess.
+- If no rule matches, the answer is `REFUSE` with a fixed sentence — a category is never invented.
+- The 2-round clarifying limit is counted on the server, so a modified frontend cannot bypass it. The limit does not end in a refusal: the third round calls the model once more with "decide, do not ask again", answers with `mode: "best_guess"` (confidence ≤ 0.6, an explicit "check before you sort" note), and falls back to the leading option if the model fails. "I still cannot tell, check it yourself" is not a valid outcome.
 - Every answered component carries a source URL and the rule id it came from.
-- The 2-round clarifying limit is counted on the server, so a modified frontend cannot bypass it.

@@ -342,11 +342,10 @@ class Pipeline:
         search_used: bool = False,
     ) -> dict[str, Any]:
         if not self.sessions.can_ask(session):
-            return self._refusal(
-                session,
-                refusal.payload("too_many_questions", "clarify budget exhausted"),
-                raw_model=identification.model,
-            )
+            # Two questions is the limit. Rather than punt ("I still cannot
+            # tell - check it yourself"), spend one more model call that is
+            # forbidden to ask again and must commit to the most likely answer.
+            return self._commit(session, clarify, identification)
 
         self.sessions.note_question(session, clarify)
         session.add_turn("assistant", clarify.get("question", ""))
@@ -362,6 +361,82 @@ class Pipeline:
             }
         )
         return self._with_diagnostics(body, identification.attempts)
+
+    def _history_text(self, session: Session) -> str:
+        lines = []
+        for turn in session.turns[-8:]:
+            who = "User" if turn.role == "user" else "Helper"
+            lines.append(f"{who}: {turn.text}")
+        return "\n".join(lines)
+
+    def _commit(self, session: Session, clarify: dict[str, Any], identification: Identification) -> dict[str, Any]:
+        """Question budget spent: turn the best available signal into an answer.
+
+        "I still cannot tell, check it yourself" is not an answer. One final
+        model call is allowed, and it is forbidden to ask again: it must pick the
+        most defensible packaging (or a genuine no-packaging/out-of-scope call).
+        """
+        query = str(session.context.get("last_text") or "")
+
+        final = self.identifier.commit(query, self._history_text(session)) if self.identifier is not None else None
+        if final is not None and final.status == "OK" and final.payload is not None:
+            decided = final.payload
+            if decided.status == "REFUSE":
+                kind = decided.reason or "out_of_scope"
+                body = refusal.payload(kind, f"model commit: {kind}")
+                if decided.message:
+                    body["message"] = decided.message
+                return self._refusal(session, body, raw_model=final.model)
+            covered = [
+                verdict
+                for verdict in self.adjudicator.resolve_all(
+                    decided.components or [], decided.source_hint, query_text=query
+                )
+                if verdict.covered
+            ]
+            if covered:
+                return self._ok(
+                    session,
+                    text=query,
+                    verdicts=covered,
+                    confidence=min(decided.confidence or 0.4, 0.6),
+                    mode="best_guess",
+                    model=final.model,
+                    explanations=decided.explanations,
+                    product=decided.product or {"name": query, "brand": ""},
+                    degraded=final.degraded,
+                    notes=["Best guess after two questions - check the packaging before you sort."],
+                )
+
+        # Deterministic backstop: the leading clarify option, when it is a real part.
+        for option in (clarify.get("options") or [])[:1]:
+            component = fallback.component_from_choice(option, self.features)
+            if component is None:
+                continue
+            verdict = self.adjudicator.resolve(component["part"], component["material"], query_text=query)
+            if verdict.covered:
+                return self._ok(
+                    session,
+                    text=query,
+                    verdicts=[verdict],
+                    confidence=0.35,
+                    mode="best_guess",
+                    model="none",
+                    explanations={},
+                    product=session.context.get("product") or {"name": query, "brand": ""},
+                    notes=["Best guess from the closest option - check the packaging before you sort."],
+                )
+
+        # No usable signal. The card still owes the user a move, not a shrug:
+        # staff at the re Kiosk sort by hand, and one container word gets us
+        # unstuck. This is the only path that ends outside OK, and it is rare.
+        body = refusal.payload("out_of_scope", "best_effort: no usable signal")
+        body["message"] = (
+            "I could not pin this down to one packaging type, so here is the safe move: "
+            "rinse the item and hand it in at the re Kiosk, where staff sort it by hand. "
+            "Tell me the container itself - bottle, cup, carton or can - and I will give you the exact slot."
+        )
+        return self._refusal(session, body, raw_model=(final.model if final else "none"))
 
     def _ok(
         self,

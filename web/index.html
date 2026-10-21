@@ -166,7 +166,7 @@
     Rules: HKU <em>re</em> Campaign —
     <a href="https://wastereduction.hku.hk/photo-guide" target="_blank" rel="noopener">Recycling 101</a> ·
     <a href="https://www.wastereduction.hku.hk/re-kiosk" target="_blank" rel="noopener">re Kiosk</a>.
-    No rule → no guess.
+    Every category comes from a published rule — a guess is always labelled.
   </footer>
 </div>
 
@@ -231,11 +231,15 @@ function render(payload) {
     const fuzzy = payload.mode === "fuzzy"
       ? `<p class="degraded">${escapeHtml(payload.notes?.[0] || "Loose match")} — answered from a partial or spelling-similar hit. Not what you meant? Try the full product name.</p>`
       : "";
+    const bestGuess = payload.mode === "best_guess"
+      ? `<p class="degraded">${escapeHtml((payload.notes && payload.notes[0]) || "Best guess - check the packaging before you sort.")}</p>`
+      : "";
     resultEl.innerHTML = `<div class="card">
       <p class="product">${escapeHtml(name)}${brand}</p>
       ${(payload.components || []).map(componentCard).join("")}
       ${fuzzy}
       ${degraded}
+      ${bestGuess}
     </div>`;
     return;
   }
@@ -301,12 +305,15 @@ function render(payload) {
   }
 
   if (payload.status === "REFUSE") {
-    // "Not covered" is a red flag - the user brought something the rules do
-    // not handle. An item that simply has no packaging is not a mistake, so it
-    // gets a neutral card and a plain title.
+    // "Not covered" is a red flag - the user brought something the rules do not
+    // handle. But an unpackaged item, or a best-effort answer after the question
+    // budget, is not a mistake: both get a neutral card and a plain title.
     const unpackaged = /not_packaging|unpacked choice/.test(payload.reason || "");
-    resultEl.innerHTML = `<div class="banner ${unpackaged ? "muted" : "refuse"}">
-      <strong>${unpackaged ? "Nothing to recycle" : "Not covered"}</strong>${escapeHtml(payload.message)}
+    const bestEffort = /best_effort/.test(payload.reason || "");
+    const neutral = unpackaged || bestEffort;
+    const title = unpackaged ? "Nothing to recycle" : bestEffort ? "Best effort" : "Not covered";
+    resultEl.innerHTML = `<div class="banner ${neutral ? "muted" : "refuse"}">
+      <strong>${title}</strong>${escapeHtml(payload.message)}
     </div>`;
     return;
   }
