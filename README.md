@@ -27,6 +27,8 @@ python server.py --mock     # deterministic offline provider, no key needed
 # then open http://localhost:8000
 ```
 
+macOS shortcut: double-click `start.command` (or `./start.command`) — it starts the server if not running and opens the browser.
+
 ## API key
 
 Copy the template and fill in the campus-provided key:
