@@ -4,3 +4,4 @@ config.json
 data/memory/
 .DS_Store
 .venv/
+.workbuddy/
