@@ -28,47 +28,41 @@
     margin: 0;
     background: var(--bg);
     color: var(--ink);
-    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "PingFang HK", Arial, sans-serif;
+    font: clamp(14px, 1vw + 10px, 16px)/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "PingFang HK", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 20px 64px; }
-  header h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: clamp(20px, 4vh, 48px) clamp(14px, 3vw, 24px) 48px; }
+  header h1 { font-size: clamp(21px, 2.4vw + 12px, 27px); line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
   header p { margin: 0; color: var(--muted); }
-  .badge {
-    display: inline-block; margin-bottom: 14px; padding: 3px 10px; border-radius: 999px;
-    background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
-  }
-  .search { display: flex; gap: 8px; margin: 22px 0 10px; }
+  .search { display: flex; gap: 8px; margin: 20px 0 10px; }
   .search input {
-    flex: 1; padding: 13px 14px; border: 1px solid var(--line); border-radius: 10px;
-    background: var(--panel); font-size: 15px; color: var(--ink); outline: none;
+    flex: 1; min-width: 0; padding: 13px 14px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel); font-size: 16px; color: var(--ink); outline: none;
   }
   .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   button { font: inherit; cursor: pointer; }
   .primary {
     padding: 13px 20px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600;
+    white-space: nowrap;
   }
   .primary[disabled] { opacity: 0.55; cursor: progress; }
-  .samples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+  .samples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
   .chip {
     padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
     background: var(--panel); color: var(--muted); font-size: 13px;
   }
   .chip:hover { border-color: var(--accent); color: var(--accent); }
   .card {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 16px;
-    margin-bottom: 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: clamp(14px, 2vw, 20px);
+    margin-bottom: 12px;
   }
-  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.01em; }
-  .product { font-size: 17px; font-weight: 650; margin: 0 0 2px; }
-  .product small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); margin-top: 3px; }
-  .comp { border-top: 1px solid var(--line); padding: 14px 0 4px; display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; }
-  .comp:first-of-type { border-top: 0; padding-top: 4px; }
+  .product { font-size: 17px; font-weight: 650; margin: 0 0 4px; }
+  .comp { border-top: 1px solid var(--line); padding: 13px 0 5px; }
+  .comp:first-of-type { border-top: 0; }
+  .comp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .comp-name { font-weight: 600; }
   .comp-name span { color: var(--muted); font-weight: 400; }
-  .tag {
-    align-self: start; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap;
-  }
+  .tag { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; }
   .tag.paper   { background: var(--amber-soft);  color: var(--amber); }
   .tag.tetra   { background: var(--teal-soft);   color: var(--teal); }
   .tag.plastic { background: var(--blue-soft);   color: var(--blue); }
@@ -77,12 +71,12 @@
   .tag.special { background: var(--orange-soft); color: var(--orange); }
   .tag.waste   { background: var(--gray-soft);   color: var(--gray); }
   .tag.refuse  { background: var(--warn-soft);   color: var(--warn); }
-  .comp p { grid-column: 1 / -1; margin: 2px 0 0; color: #333b38; }
-  .comp .src { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .comp p { margin: 4px 0 0; color: #333b38; }
+  .comp .src { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
   .comp .src a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-soft); }
   .comp .src a:hover { border-bottom-color: var(--accent); }
-  .query-note { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
-  .banner { border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; border: 1px solid; }
+  .degraded { color: var(--amber); font-size: 12.5px; margin-top: 10px; }
+  .banner { border-radius: 14px; padding: 15px 17px; margin-bottom: 12px; border: 1px solid; }
   .banner strong { display: block; margin-bottom: 4px; }
   .banner.refuse { background: var(--warn-soft); border-color: #f3c9c5; color: #7a1d17; }
   .banner.muted  { background: var(--panel);   border-color: var(--line); color: var(--ink); }
@@ -92,24 +86,31 @@
   }
   .options button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .error { color: var(--warn); font-size: 13.5px; margin-top: 10px; }
-  footer { margin-top: 34px; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 12.5px; }
   footer a { color: var(--accent); text-decoration: none; }
   .hidden { display: none; }
   .spinner { display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px;
     border: 2px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 560px) {
+    .search { flex-wrap: wrap; }
+    .search input { flex-basis: 100%; }
+    .primary { flex: 1; }
+    .comp-head { flex-direction: column; gap: 4px; }
+    .tag { align-self: flex-start; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <span class="badge">HKU re Campaign rules</span>
     <h1>Campus Recycling Helper</h1>
-    <p>Type a brand or product. We identify its packaging parts and match each one to a published campus rule — or say we cannot.</p>
+    <p>Type a product — each packaging part is matched against HKU's published campus rules, or we say we can't.</p>
   </header>
 
   <form class="search" id="form">
-    <input id="query" type="text" placeholder="e.g. Vitasoy lemon tea, Nissin cup noodles" autocomplete="off" maxlength="400" />
+    <input id="query" type="text" placeholder="e.g. Vitasoy lemon tea" autocomplete="off" maxlength="400" />
     <input id="photo" type="file" accept="image/*" class="hidden" />
     <button class="primary" id="go" type="submit">Sort it</button>
   </form>
@@ -117,19 +118,16 @@
   <div class="samples" id="samples">
     <button class="chip" type="button">Vitasoy lemon tea</button>
     <button class="chip" type="button">Nissin cup noodles</button>
-    <button class="chip" type="button">Starbucks takeaway coffee cup</button>
-    <button class="chip" type="button">Pizza Hut pizza box</button>
-    <button class="chip" type="button">Perrier glass bottle</button>
-    <button class="chip" type="button">Old laptop battery</button>
+    <button class="chip" type="button">Starbucks coffee cup</button>
   </div>
 
   <div id="result"></div>
 
   <footer>
-    Rules come from the HKU <em>re</em> Campaign:
-    <a href="https://wastereduction.hku.hk/photo-guide" target="_blank" rel="noopener">Recycling 101 photo guide</a> ·
-    <a href="https://www.wastereduction.hku.hk/re-kiosk" target="_blank" rel="noopener">re Kiosk accepted items</a>.
-    Every category shown is matched against that rule set — if no rule covers the item, the helper refuses instead of guessing.
+    Rules: HKU <em>re</em> Campaign —
+    <a href="https://wastereduction.hku.hk/photo-guide" target="_blank" rel="noopener">Recycling 101</a> ·
+    <a href="https://www.wastereduction.hku.hk/re-kiosk" target="_blank" rel="noopener">re Kiosk</a>.
+    No rule → no guess.
   </footer>
 </div>
 
@@ -161,31 +159,30 @@ function setBusy(busy) {
 
 function componentCard(item) {
   const cls = CATEGORY_CLASS[item.category] || "waste";
-  const head = `<div class="comp-name">${escapeHtml(item.part || "packaging")}` +
-    (item.material ? ` <span>· ${escapeHtml(item.material)}</span>` : "") + `</div>`;
-  if (item.status !== "MATCHED") {
-    return `<div class="comp">${head}<span class="tag waste">Not covered</span>
-      <p>${escapeHtml(item.message || "This packaging is not covered by the current rule set.")}</p></div>`;
-  }
-  const src = item.source
-    ? `<div class="src">Rule <code>${escapeHtml(item.rule_id)}</code> · ${escapeHtml(item.source.name)} (verified ${escapeHtml(item.effective_date)}) ·
-        <a href="${escapeHtml(item.source.url)}" target="_blank" rel="noopener">open source</a></div>`
-    : "";
-  return `<div class="comp">${head}<span class="tag ${cls}">${escapeHtml(item.category)}</span>
-    <p>${escapeHtml(item.explanation || item.instruction || "")}</p>${src}</div>`;
+  const name = `${escapeHtml(item.part || "packaging")}` +
+    (item.material ? ` <span>· ${escapeHtml(item.material)}</span>` : "");
+  const tag = item.status === "MATCHED"
+    ? `<span class="tag ${cls}">${escapeHtml(item.category)}</span>`
+    : `<span class="tag waste">Not covered</span>`;
+  const body = item.status === "MATCHED"
+    ? `<p>${escapeHtml(item.explanation || item.instruction || "")}</p>` +
+      (item.source
+        ? `<div class="src"><a href="${escapeHtml(item.source.url)}" target="_blank" rel="noopener">source ↗</a> · ${escapeHtml(item.source.name)}</div>`
+        : "")
+    : `<p>${escapeHtml(item.message || "Not covered by the current rule set.")}</p>`;
+  return `<div class="comp"><div class="comp-head"><span class="comp-name">${name}</span>${tag}</div>${body}</div>`;
 }
 
 function render(payload) {
   if (payload.status === "OK") {
     const product = payload.product || {};
     const name = product.name || queryEl.value;
-    const brand = product.brand ? `<small>${escapeHtml(product.brand)}</small>` : "";
-    const q = payload.mode === "exact" ? "Matched locally — no model call was needed." : `Identified by ${escapeHtml(payload.raw_model || "model")}.`;
+    const brand = product.brand ? ` <span style="color:var(--muted);font-weight:400">· ${escapeHtml(product.brand)}</span>` : "";
+    const degraded = payload.degraded ? `<p class="degraded">Response was repaired by the validator before display.</p>` : "";
     resultEl.innerHTML = `<div class="card">
-      <h2>Result</h2>
       <p class="product">${escapeHtml(name)}${brand}</p>
       ${(payload.components || []).map(componentCard).join("")}
-      <p class="query-note">${q} ${payload.degraded ? "Response was repaired by the validator before display." : ""}</p>
+      ${degraded}
     </div>`;
     return;
   }
@@ -195,7 +192,6 @@ function render(payload) {
     const buttons = (clarify.options || []).map(id =>
       `<button type="button" data-choice="${escapeHtml(id)}">${escapeHtml(clarify.labels?.[id] || id)}</button>`).join("");
     resultEl.innerHTML = `<div class="card">
-      <h2>One more detail</h2>
       <p class="product">${escapeHtml(clarify.question || "Which packaging do you see?")}</p>
       <div class="options">${buttons}</div>
     </div>`;
@@ -207,7 +203,6 @@ function render(payload) {
   if (payload.status === "REFUSE") {
     resultEl.innerHTML = `<div class="banner refuse">
       <strong>Not covered</strong>${escapeHtml(payload.message)}
-      <div class="query-note">No rule was invented for this item. Check with campus sustainability staff if you are unsure.</div>
     </div>`;
     return;
   }
@@ -215,7 +210,6 @@ function render(payload) {
   if (payload.status === "SERVICE_UNAVAILABLE") {
     resultEl.innerHTML = `<div class="banner muted">
       <strong>Service unavailable</strong>${escapeHtml(payload.message)}
-      <div class="query-note">Nothing was guessed. Try a product name that appears in the rule keywords, or retry shortly.</div>
     </div>`;
     return;
   }
@@ -236,7 +230,7 @@ async function post(url, body) {
 
 async function identify(text) {
   setBusy(true);
-  resultEl.innerHTML = `<div class="card"><h2>Working</h2>Checking the campus rule set…</div>`;
+  resultEl.innerHTML = `<div class="card"><p class="product">Checking the campus rule set…</p></div>`;
   try {
     const data = await post("/identify", { text, session_id: sessionId });
     sessionId = data.session_id || sessionId;
