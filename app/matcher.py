@@ -125,11 +125,16 @@ def fuzzy_match(text: str, rules: Sequence[Rule]) -> Match | None:
     2. typo rescue - 'bottel' -> 'plastic bottle' via Damerau-Levenshtein,
        short queries (<= 3 words) only; distance 0 is the exact layer's
        business and must not steal underspecified queries.
+
+    Refusal rules never fuzzy-match: 'Nestle' is 2 edits from the refusal
+    keyword 'needle', and a spelling guess must never refuse a real query.
+    Hazards are still caught by the exact layer and refusal.hazard_hit.
     """
     all_words = normalise(text).split()
     if not all_words or len(all_words) > 3:
         return None
 
+    rules = [rule for rule in rules if not rule.is_refusal]
     overlap_words = [
         word for word in all_words
         if len(word) >= _OVERLAP_MIN_LENGTH and word not in _STOPWORDS

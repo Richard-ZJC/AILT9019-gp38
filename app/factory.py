@@ -40,7 +40,10 @@ def build_clients(
             if enable_search:
                 # Qwen/DashScope-compatible web search. Only used by the
                 # brand-disambiguation router, never by the main identify call.
+                # forced_search: never let the model skip the search on a
+                # disambiguation call (official search_options switch).
                 extra_body["enable_search"] = True
+                extra_body.setdefault("search_options", {})["forced_search"] = True
             clients.append(
                 OpenAIClient(
                     api_key=api_key,
