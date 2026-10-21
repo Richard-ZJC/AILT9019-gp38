@@ -51,6 +51,7 @@ def fixed_clarify(features: FeatureSet, question: str | None = None) -> dict[str
         "question": question or features.question,
         "options": [feature.id for feature in features.options],
         "labels": {feature.id: feature.label for feature in features.options},
+        "hints": {feature.id: feature.hint for feature in features.options},
     }
 
 
@@ -115,10 +116,12 @@ def _clean_clarify(
         notes.append("clarify.options: fewer than 2 choices -> fixed option list")
         return fixed_clarify(features, question if isinstance(question, str) and question.strip() else None)
     labels = {feature.id: feature.label for feature in features.options}
+    hints = {feature.id: feature.hint for feature in features.options}
     return {
         "question": question.strip() if isinstance(question, str) and question.strip() else features.question,
         "options": picked,
         "labels": {option: labels[option] for option in picked},
+        "hints": {option: hints[option] for option in picked},
     }
 
 

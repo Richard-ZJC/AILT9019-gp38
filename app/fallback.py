@@ -12,10 +12,12 @@ def build(features: FeatureSet, question: str | None = None, options: list[str] 
     allowed = list(features.ids)
     picked = [option for option in (options or allowed) if option in allowed] or allowed
     labels = {feature.id: feature.label for feature in features.options}
+    hints = {feature.id: feature.hint for feature in features.options}
     return {
         "question": question or features.question,
         "options": picked,
         "labels": {option: labels[option] for option in picked},
+        "hints": {option: hints[option] for option in picked},
         "source": "fixed",
     }
 

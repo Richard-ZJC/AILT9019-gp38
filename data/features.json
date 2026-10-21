@@ -1,16 +1,16 @@
 {
   "meta": {
-    "note": "Single source of truth for clarifying-question options. The AI may only pick from these ids; schema.py rejects anything else. Kept small on purpose: seven choices, one swipeable row.",
+    "note": "Single source of truth for clarifying-question options. The AI may only pick from these ids; schema.py rejects anything else. Alphabetical by label; hints shown in the UI when an option is clicked.",
     "verified_on": "2026-10-22"
   },
   "question": "Which packaging do you see on the product?",
   "options": [
-    { "id": "bottle", "label": "Plastic bottle", "part": "bottle", "material": "plastic" },
-    { "id": "glass-bottle", "label": "Glass bottle or jar", "part": "bottle", "material": "glass" },
-    { "id": "carton", "label": "Carton / Tetra Pak", "part": "carton", "material": "tetra pak" },
-    { "id": "cup-paper", "label": "Paper cup (coffee cup)", "part": "cup", "material": "paper" },
-    { "id": "cup", "label": "Plastic or foam cup", "part": "cup", "material": "plastic" },
-    { "id": "can", "label": "Metal can", "part": "can", "material": "aluminium" },
-    { "id": "other", "label": "None of these", "part": "other", "material": "none" }
+    { "id": "carton", "label": "Carton / Tetra Pak", "part": "carton", "material": "tetra pak", "hint": "Drink cartons and Tetra Pak: empty, rinse, flatten - Tetra Pak slot at the re Kiosk." },
+    { "id": "glass-bottle", "label": "Glass bottle or jar", "part": "bottle", "material": "glass", "hint": "Glass bottles and jars: rinse, no need to remove labels. Metal lids go separately." },
+    { "id": "can", "label": "Metal can", "part": "can", "material": "aluminium", "hint": "Aluminium or steel cans: rinse; flatten if the bin asks for it." },
+    { "id": "other", "label": "None of these", "part": "other", "material": "none", "hint": "Nothing above matches - the helper will say it cannot sort this item rather than guess." },
+    { "id": "cup-paper", "label": "Paper cup (coffee cup)", "part": "cup", "material": "paper", "hint": "Clean take-away paper cups go to the Tetra Pak slot; plastic lid and paper sleeve are separated." },
+    { "id": "bottle", "label": "Plastic bottle", "part": "bottle", "material": "plastic", "hint": "PET/HDPE drink bottles: empty, rinse, cap screwed back on." },
+    { "id": "cup", "label": "Plastic or foam cup", "part": "cup", "material": "plastic", "hint": "Plastic or foam cups, incl. cup-noodle pots: empty and rinse, plastic stream." }
   ]
 }

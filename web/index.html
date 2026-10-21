@@ -97,6 +97,16 @@
     padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink);
   }
   .options button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .options button.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .clarify-note {
+    margin-top: var(--s3); padding: var(--s3); border-radius: 12px;
+    background: var(--bg); border: 1px solid var(--line); color: #333b38; font-size: 14.5px; line-height: 1.6;
+  }
+  .clarify-note:empty { display: none; }
+  .confirm-row { margin-top: var(--s3); display: flex; align-items: center; gap: var(--s3); }
+  .confirm-row .primary { padding: 11px 20px; }
+  .confirm-row .primary[disabled] { opacity: 0.45; cursor: not-allowed; }
+  .confirm-hint { color: var(--muted); font-size: 13px; }
   .error { color: var(--warn); font-size: 14px; margin-top: var(--s3); }
   footer { margin-top: var(--s6); color: var(--muted); font-size: 13px; }
   footer a { color: var(--accent); text-decoration: none; }
@@ -205,15 +215,29 @@ function render(payload) {
   }
 
   if (payload.status === "CLARIFY") {
-    const clarify = payload.clarify || { options: [], labels: {} };
+    const clarify = payload.clarify || { options: [], labels: {}, hints: {} };
     const buttons = (clarify.options || []).map(id =>
       `<button type="button" data-choice="${escapeHtml(id)}">${escapeHtml(clarify.labels?.[id] || id)}</button>`).join("");
     resultEl.innerHTML = `<div class="card">
       <p class="product">${escapeHtml(clarify.question || "Which packaging do you see?")}</p>
       <div class="options">${buttons}</div>
+      <div class="clarify-note" id="clarify-note"></div>
+      <div class="confirm-row">
+        <button class="primary" id="confirm-choice" type="button" disabled>Confirm</button>
+        <span class="confirm-hint">Tap a packaging type to see what it means.</span>
+      </div>
     </div>`;
+    let selected = null;
+    const noteEl = document.getElementById("clarify-note");
+    const confirmEl = document.getElementById("confirm-choice");
     resultEl.querySelectorAll("[data-choice]").forEach(btn =>
-      btn.addEventListener("click", () => answer(btn.dataset.choice)));
+      btn.addEventListener("click", () => {
+        selected = btn.dataset.choice;
+        resultEl.querySelectorAll("[data-choice]").forEach(b => b.classList.toggle("selected", b === btn));
+        noteEl.textContent = clarify.hints?.[selected] || "";
+        confirmEl.disabled = false;
+      }));
+    confirmEl.addEventListener("click", () => { if (selected) answer(selected); });
     return;
   }
 

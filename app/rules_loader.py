@@ -68,6 +68,7 @@ class Feature:
     label: str
     part: str
     material: str
+    hint: str = ""
 
 
 @dataclass(frozen=True)
@@ -218,7 +219,9 @@ def load_features(path: str | Path | None = None) -> FeatureSet:
         material = entry.get("material")
         _require(isinstance(part, str) and part.strip(), f"{feature_id}: 'part' missing")
         _require(isinstance(material, str), f"{feature_id}: 'material' missing")
-        options.append(Feature(id=feature_id, label=label.strip(), part=part.strip().lower(), material=material.strip().lower()))
+        hint = entry.get("hint") or ""
+        _require(isinstance(hint, str), f"{feature_id}: 'hint' must be a string")
+        options.append(Feature(id=feature_id, label=label.strip(), part=part.strip().lower(), material=material.strip().lower(), hint=hint.strip()))
 
     return FeatureSet(question=question.strip(), options=tuple(options))
 
