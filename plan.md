@@ -224,7 +224,7 @@ AILT9019-gp38/
 | T4b | schema.py（模版 + options/source_hint 校验 + 降级） | 🟥 | W6–8 | ✅ | 测试①④⑥⑦ | 非法 hint→null；越界 option→固定清单 |
 | T4c | pipeline.py 编排（0成本→AI→裁决→输出） | 🟥 | W6–8 | ✅ | run_tests | 四态 + `mode` 字段标明路径 |
 | T4d | identify.py（合并解释的 prompt） | 🟥 | W6–8 | ✅ | 品牌组 | 1 次调用出解释，失败回退规则原文 |
-| T5 | fallback.py 固定选项反问 + 2 轮上限 | 🟥 | W6–8 | ✅ | 低置信组 | 选项唯一来源 features.json（10 项） |
+| T5 | fallback.py 固定选项反问 + 2 轮上限 | 🟥 | W6–8 | ✅ | 低置信组 | 选项唯一来源 features.json（12 项，含 cup / cup-paper、box / box-foam 的材质区分） |
 | T6 | refusal.py（本地 hazards + 未匹配 + 全挂） | 🟥 | W6–8 | ✅ | 不支持组 | 四类拒答话术集中一处 |
 | T7 | server.py + web/index.html（英文 UI，非流式） | 🟥 | W6–8 | ✅ | smoke_test | 9/9 冒烟通过；`/identify/stream` 501 |
 | T8 | README（英文：setup / key / samples / supported） | 🟥 | W6–8 | ✅ | — | 含 16 条规则来源表与日期口径 |
@@ -252,6 +252,7 @@ AILT9019-gp38/
 | thinking | 未考虑 | 两路都关闭（`enable_thinking:false` / `thinking:{type:disabled}`） | 同一 prompt：开 12–67s，关 2–5s；JSON 抽取不需要思维链 |
 | `extra_body` | 无 | 有 | 网关私有开关不能写进通用客户端，否则真 OpenAI/Anthropic 会 400 |
 | 测试开关 | 无 | `pipeline.use_fast_path` + `run_tests --no-fast-path` | 不关掉关键词层，品牌组永远走不到模型，等于没测 AI |
+| 反问选项粒度 | 部件级（cup / box …） | 部分部件加材质变体（`cup` vs `cup-paper`、`box` vs `box-foam`） | 模型只会问「塑料还是纸」，但只有部件级选项时它就只给 1 个答案；schema 现要求 ≥2 个选项，否则回落完整清单 |
 
 **验证状态**：`run_tests.py` mock 20/20 · `run_tests.py --live` 19/20 · `run_tests.py --live --no-fast-path` 19–20/20 · `test_ai_plugin.py` 8/8 · `smoke_test.py` 9/9。唯一不稳定用例是 `l03 "some snack wrapper"`：模型有时直接判 plastic packaging，有时反问——属真实判断题，非链路 bug。
 

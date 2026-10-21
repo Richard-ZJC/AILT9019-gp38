@@ -140,7 +140,7 @@ Notes:
 python tests/run_tests.py                     # 10 brand + 5 low-confidence + 5 unsupported, mock provider
 python tests/run_tests.py --live              # same cases against the real key
 python tests/run_tests.py --live --no-fast-path   # disables the keyword layer: every case goes through the model
-python tests/test_ai_plugin.py                # 8 routing / schema / degradation checks, fake providers
+python tests/test_ai_plugin.py                # 9 routing / schema / degradation checks, fake providers
 python tests/smoke_test.py                    # boots the server, hits every route
 python tests/live_ai_test.py                  # one model call per query, prints the routing trace
 ```

@@ -178,6 +178,20 @@ def test_third_clarify_refused() -> None:
     check("8 session: third clarifying question is refused", ok, f"{first['status']}/{second['status']}/{third['status']}")
 
 
+def test_single_option_clarify_expanded() -> None:
+    raw = json.loads(
+        good_payload(
+            status="CLARIFY",
+            components=[],
+            source_hint=None,
+            clarify={"question": "Plastic or paper?", "options": ["cup"]},
+        )
+    )
+    payload = validate(raw, RULES, FEATURES)
+    ok = payload.clarify is not None and len(payload.clarify["options"]) >= 2
+    check("9 schema: one-option clarify -> full option list", ok, str(payload.clarify))
+
+
 def main() -> int:
     print("AI plugin tests (fake providers, no network)")
     test_schema_accepts_valid()
@@ -188,6 +202,7 @@ def main() -> int:
     test_invalid_source_hint_nulled()
     test_options_out_of_range()
     test_third_clarify_refused()
+    test_single_option_clarify_expanded()
 
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     total = len(RESULTS)

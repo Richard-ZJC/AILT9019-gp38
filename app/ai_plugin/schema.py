@@ -110,6 +110,10 @@ def _clean_clarify(
     if not picked or len(picked) != len(options):
         notes.append("clarify.options: replaced with the fixed option list")
         return fixed_clarify(features, question if isinstance(question, str) and question.strip() else None)
+    if len(picked) < 2:
+        # A question with a single answer is not a question - show the full list.
+        notes.append("clarify.options: fewer than 2 choices -> fixed option list")
+        return fixed_clarify(features, question if isinstance(question, str) and question.strip() else None)
     labels = {feature.id: feature.label for feature in features.options}
     return {
         "question": question.strip() if isinstance(question, str) and question.strip() else features.question,
