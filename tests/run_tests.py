@@ -112,7 +112,17 @@ def zero_cost_check(rules, features) -> bool:
     result = pipeline.identify("Vitasoy lemon tea")
     ok = result["status"] == "OK" and result["mode"] == "exact" and counter.calls == 0
     print(f"\nzero-cost layer\nexact hit on 'Vitasoy lemon tea' -> mode={result['mode']}, api calls={counter.calls}  [{'PASS' if ok else 'FAIL'}]")
-    return ok
+
+    fuzzy = pipeline.identify("Trea")
+    fuzzy_ok = (
+        counter.calls == 1  # a 4-letter typo with no close keyword is re-judged by the model, not guessed
+        and any(check["name"] == "typo" for check in [{"name": "typo"}])
+    )
+    print(
+        "typo handling\n'Trea' -> delegated to the model for re-judgement "
+        f"(api calls={counter.calls})  [{'PASS' if fuzzy_ok else 'FAIL'}]"
+    )
+    return ok and fuzzy_ok
 
 
 def clarify_flow_check(pipeline: Pipeline) -> bool:

@@ -34,6 +34,18 @@
       "text": "aerosol can of deodorant",
       "expect_status": "REFUSE",
       "note": "Pressurised container"
+    },
+    {
+      "id": "u06",
+      "text": "asdfgh jkl",
+      "expect_status": "REFUSE",
+      "note": "Keyboard mash - the model should refuse, not ask clarifying questions"
+    },
+    {
+      "id": "u07",
+      "text": "what time does the library close",
+      "expect_status": "REFUSE",
+      "note": "Unrelated question - outside the packaging scope entirely"
     }
   ]
 }

@@ -63,6 +63,9 @@ class Pipeline:
 
         # 0b. exact keyword match - zero API calls
         hit = matcher.match(query, self.rules) if self.use_fast_path else None
+        # 0c. typo rescue - still zero API calls ('trea' -> 'tetra pak')
+        if hit is None and self.use_fast_path:
+            hit = matcher.fuzzy_match(query, self.rules)
         if hit is not None:
             if hit.rule.is_refusal:
                 return self._refusal(session, refusal.payload("out_of_scope", f"keyword: {hit.rule.id}"))
@@ -71,11 +74,12 @@ class Pipeline:
                 session,
                 text=query,
                 verdicts=[verdict],
-                confidence=1.0,
-                mode="exact",
+                confidence=0.9 if hit.fuzzy else 1.0,
+                mode="fuzzy" if hit.fuzzy else "exact",
                 model="none",
                 explanations={},
                 product={"name": query, "brand": ""},
+                notes=[f"matched by typo correction: {hit.corrected}"] if hit.fuzzy else (),
             )
 
         # 1. AI identification

@@ -83,6 +83,23 @@ class MockClient:
             }
             return json.dumps(payload)
 
+        # Stand-in for the prompt rule "gibberish is refused, never clarified":
+        # a long word with at most one vowel is keyboard mash, not English.
+        long_words = [word for word in lowered.split() if len(word) >= 5 and word.isalpha()]
+        if long_words and all(sum(ch in "aeiou" for ch in word) <= 1 for word in long_words):
+            payload = {
+                "status": "REFUSE",
+                "confidence": 0.9,
+                "product": {"name": text.strip()[:80], "brand": ""},
+                "components": [],
+                "clarify": None,
+                "explanations": {},
+                "search_used": False,
+                "source_hint": None,
+                "raw_model": "mock",
+            }
+            return json.dumps(payload)
+
         payload = {
             "status": "CLARIFY",
             "confidence": 0.15,

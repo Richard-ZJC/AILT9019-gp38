@@ -218,9 +218,11 @@ function render(payload) {
     const name = product.name || queryEl.value;
     const brand = product.brand ? ` <span style="color:var(--muted);font-weight:400">· ${escapeHtml(product.brand)}</span>` : "";
     const degraded = payload.degraded ? `<p class="degraded">Response was repaired by the validator before display.</p>` : "";
+    const fuzzy = payload.mode === "fuzzy" ? `<p class="degraded">Possible typo — matched by spelling similarity. Not what you meant? Try the full product name.</p>` : "";
     resultEl.innerHTML = `<div class="card">
       <p class="product">${escapeHtml(name)}${brand}</p>
       ${(payload.components || []).map(componentCard).join("")}
+      ${fuzzy}
       ${degraded}
     </div>`;
     return;
