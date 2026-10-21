@@ -105,14 +105,14 @@
   }
   .clarify-note:empty { display: none; }
   @keyframes reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-  .note-icon {
-    flex: 0 0 auto; width: 60px; height: 60px; border-radius: 12px; background: var(--panel);
-    display: grid; place-items: center; color: var(--accent);
-  }
-  .note-icon svg { width: 34px; height: 34px; }
   .note-body { min-width: 0; }
   .note-body strong { display: block; font-size: 15px; margin-bottom: 2px; }
   .note-body p { margin: 0; font-size: 14px; line-height: 1.55; color: #333b38; }
+  .wiki-link {
+    display: inline-block; margin-top: var(--s1); font-size: 13px;
+    color: var(--muted); text-decoration: none; border-bottom: 1px dashed var(--line);
+  }
+  .wiki-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
   .note-confirm {
     margin-top: var(--s2); padding: 0; border: 0; background: none;
     color: var(--accent); font-weight: 650; font-size: 14px;
@@ -294,22 +294,26 @@ function render(payload) {
       if (event.key === "Enter") { event.preventDefault(); sendFree(); }
     });
     document.getElementById("free-send").addEventListener("click", sendFree);
-    const ICONS = {
-      "bottle": '<path d="M10 2h4v3l1.5 2.5c.3.5.5 1.1.5 1.7V20a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9.2c0-.6.2-1.2.5-1.7L10 5V2Z"/><line x1="8" y1="12" x2="16" y2="12"/>',
-      "glass-bottle": '<path d="M10 2h4v4l1.2 2.4c.5 1 .8 2 .8 3.1V20a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-8.5c0-1.1.3-2.2.8-3.1L10 6V2Z"/>',
-      "carton": '<path d="M8 9l4-6 4 6"/><path d="M7 9h10"/><rect x="7" y="9" width="10" height="12" rx="1"/><path d="M7 13.5h10"/>',
-      "cup-paper": '<rect x="4.5" y="4" width="15" height="2" rx="1"/><path d="M6 6l1.2 12.2A2 2 0 0 0 9.2 20h5.6a2 2 0 0 0 2-1.8L18 6"/><path d="M8.2 10.5h7.6l-.5 4.5H8.7l-.5-4.5Z"/>',
-      "cup": '<path d="M6 7h12l-1.5 13a2 2 0 0 1-2 1.8h-5A2 2 0 0 1 7.5 20L6 7Z"/><path d="M12 7l2.5-5"/>',
-      "can": '<ellipse cx="12" cy="5" rx="6" ry="2"/><path d="M6 5v14c0 1.1 2.7 2 6 2s6-.9 6-2V5"/><path d="M9.5 8.5h5"/>',
-      "other": '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.5 2.5 0 1 1 3.9 2.1c-.9.6-1.4 1.1-1.4 2.1"/><line x1="12" y1="16.8" x2="12" y2="16.9"/>'
+    // Real Wikipedia articles (all verified 200) instead of abstract icons:
+    // users who don't know what "Tetra Pak" means can see photos and text.
+    const WIKI = {
+      "bottle": "Plastic_bottle",
+      "glass-bottle": "Glass_bottle",
+      "carton": "Tetra_Pak",
+      "cup-paper": "Paper_cup",
+      "cup": "Foam_food_container",
+      "can": "Beverage_can",
     };
     let selected = null;
     const noteEl = document.getElementById("clarify-note");
     const showNote = choice => {
-      const icon = `<span class="note-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[choice] || ICONS["other"]}</svg></span>`;
       const label = escapeHtml(clarify.labels?.[choice] || choice);
       const hint = escapeHtml(clarify.hints?.[choice] || "This packaging type is covered by the campus rule set.");
-      noteEl.innerHTML = `${icon}<div class="note-body"><strong>${label}</strong><p>${hint}</p>
+      const article = WIKI[choice];
+      const wiki = article
+        ? `<a class="wiki-link" href="https://en.wikipedia.org/wiki/${article}" target="_blank" rel="noopener">Not sure what this looks like? See ${escapeHtml(article.replace(/_/g, " "))} on Wikipedia ↗</a>`
+        : "";
+      noteEl.innerHTML = `<div class="note-body"><strong>${label}</strong><p>${hint}</p>${wiki}
         <button class="note-confirm" type="button">This is it — answer with this →</button></div>`;
       noteEl.querySelector(".note-confirm").addEventListener("click", () => answer(choice));
     };
