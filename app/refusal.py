@@ -39,8 +39,8 @@ def hazard_hit(text: str) -> str | None:
 
 
 NOT_PACKAGING_ITEM = (
-    "A {item} comes without any packaging, so there is nothing to recycle here. "
-    "If it actually came in a wrapper, bottle or cup, describe that packaging instead."
+    "{item} has no packaging, so there is nothing to recycle here. "
+    "If it came in a wrapper, bottle or cup, describe that packaging instead."
 )
 
 

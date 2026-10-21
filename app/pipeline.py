@@ -7,6 +7,7 @@ before a category exists. Every branch ends in exactly one of four statuses.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Sequence
 
 from . import explain, fallback, matcher, refusal
@@ -18,6 +19,52 @@ from .rules_loader import FeatureSet, Rule
 from .session import Session, SessionStore
 
 MIN_CONFIDENCE = 0.5
+
+# Ingredients and bulk materials are sold in dozens of packagings, so a bare
+# mention of one is never "an item without packaging" - it is a query that
+# needs disambiguation. Kept small and explicit: only words whose own name
+# denotes the loose substance, not a product.
+_BULK_MATERIALS = frozenset(
+    {
+        "tea", "coffee", "milk", "water", "juice", "rice", "flour", "sugar",
+        "salt", "oil", "soup", "porridge", "cereal", "grain", "powder",
+        "sauce", "honey", "yogurt", "yoghurt", "noodle", "noodles",
+    }
+)
+_BULK_PHRASES = ("茶", "咖啡", "牛奶", "果汁", "大米", "面粉", "白糖", "食用油")
+_CONTAINER_WORDS = (
+    "bag", "cup", "bottle", "can", "box", "carton", "tin", "jar", "pack",
+    "packet", "wrapper", "sleeve", "lid", "tube", "pouch", "sachet",
+)
+
+
+def _is_bare_noun(text: str) -> bool:
+    """A short noun phrase with no size and no container word.
+
+    Such a query says nothing about packaging, so "which packaging do you see
+    on the product?" is unanswerable - the user may not even be holding one.
+    """
+    lowered = " ".join((text or "").lower().replace("-", " ").split())
+    words = re.findall(r"[a-z]+", lowered)
+    if not words or len(words) > 2 or any(character.isdigit() for character in lowered):
+        return False
+    if any(word in _CONTAINER_WORDS for word in words):
+        return False
+    return True
+
+
+def _is_bulk_material(text: str) -> bool:
+    """True when the query names a substance rather than one unpackaged object."""
+    lowered = " ".join((text or "").lower().replace("-", " ").split())
+    if not lowered:
+        return False
+    words = re.findall(r"[a-z]+", lowered)
+    if any(word in _CONTAINER_WORDS for word in words):
+        return False
+    if words and any(word in _BULK_MATERIALS for word in words):
+        return True
+    return any(phrase in lowered for phrase in _BULK_PHRASES)
+
 
 
 class Pipeline:
@@ -151,6 +198,13 @@ class Pipeline:
 
         if payload.status == "REFUSE":
             kind = payload.reason or "out_of_scope"
+            if kind == "not_packaging" and _is_bulk_material(query):
+                # Deterministic guard on top of the prompt: "tea" is sold in
+                # tins, bottles, cartons and tea bags, so refusing it as "an
+                # item without packaging" is an over-assumption. Send it to the
+                # product search instead - the search list still offers a
+                # "(no packaging)" choice for loose tea.
+                return self._disambiguate(session, query, payload, identification)
             body = refusal.payload(kind, f"model: {kind}")
             # The model's own message wins (it follows the user's language);
             # the fixed refusal.py copy is the fallback, never a second voice.
@@ -159,6 +213,12 @@ class Pipeline:
             return self._refusal(session, body)
 
         if payload.status == "BRAND":
+            return self._disambiguate(session, query, payload, identification)
+
+        if payload.status == "CLARIFY" and _is_bare_noun(query):
+            # "lemon", "milk tea", "chocolate": no container, no size, nothing
+            # the user could look at. Asking which packaging they see is a dead
+            # end, so the model's CLARIFY is replaced by the product search.
             return self._disambiguate(session, query, payload, identification)
 
         if payload.status == "CLARIFY" or self._low_confidence(payload):
@@ -210,19 +270,49 @@ class Pipeline:
 
     def _disambiguate(self, session: Session, query: str, payload, identification: Identification) -> dict[str, Any]:
         """Brand-only query: fetch product candidates via web search, let the user pick."""
-        if session.context.get("disambiguated"):
-            # Loop guard: the user already picked a product and the model still
-            # says BRAND - stop searching, fall back to the packaging question.
+        if session.context.get("disambiguated") == query:
+            # Loop guard, keyed on the query itself: the same words came back a
+            # second time, so searching again would repeat the same list. A
+            # different query in the same session is not a loop.
             return self._ask(session, fallback.build(self.features), payload, identification)
         products = payload.products
         if not products and self.identifier is not None:
             products = self.identifier.disambiguate(query)
-        if not products:
-            # Search unavailable or useless - fall back to the ordinary packaging question.
-            return self._ask(session, fallback.build(self.features), payload, identification)
-        question = f"Which '{query}' product do you have?"
+        products = self._with_unpacked_option(query, products)
+        question = f"Which '{query}' do you have?"
         clarify = fallback.build_products(question, products)
-        return self._ask(session, clarify, payload, identification)
+        session.remember(disambiguated=query)
+        return self._ask(session, clarify, payload, identification, search_used=True)
+
+    def _with_unpacked_option(self, query: str, products: list[dict[str, str]]) -> list[dict[str, str]]:
+        """Keep the '(no packaging)' escape hatch first when search offered one.
+
+        It is not synthesised for every query: pretending that chocolate or cola
+        might come unpackaged would be as wrong as assuming lemon always does.
+        When search returns nothing at all we still need one usable option, and
+        "no packaging" is the only honest one.
+        """
+        if not products:
+            return [{"name": f"{query} (no packaging)", "packaging": "none"}]
+        unique: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for item in products:
+            key = " ".join(item.get("name", "").lower().split())
+            if key and key not in seen:
+                seen.add(key)
+                unique.append(item)
+        products = unique
+        unpacked = [item for item in products if (item.get("packaging") or "").lower() == "none"]
+        rest = [item for item in products if (item.get("packaging") or "").lower() != "none"]
+        if unpacked:
+            # A search that lists "KitKat Tablet" and "KitKat Tablet (no
+            # packaging)" contradicts itself: the same product cannot be both.
+            # The packaged entry wins, and the phantom twin is dropped.
+            base = unpacked[0]["name"].lower().replace(" (no packaging)", "").strip()
+            if not any(base in item.get("name", "").lower() for item in rest):
+                return (unpacked[:1] + rest)[:5]
+            return rest[:5]
+        return products[:5]
 
     # ------------------------------------------------------------ response builders
 
@@ -243,7 +333,14 @@ class Pipeline:
             "degraded": False,
         }
 
-    def _ask(self, session: Session, clarify: dict[str, Any], payload, identification: Identification) -> dict[str, Any]:
+    def _ask(
+        self,
+        session: Session,
+        clarify: dict[str, Any],
+        payload,
+        identification: Identification,
+        search_used: bool = False,
+    ) -> dict[str, Any]:
         if not self.sessions.can_ask(session):
             return self._refusal(
                 session,
@@ -252,8 +349,6 @@ class Pipeline:
             )
 
         self.sessions.note_question(session, clarify)
-        if clarify.get("kind") == "disambiguate":
-            session.remember(disambiguated=True)
         session.add_turn("assistant", clarify.get("question", ""))
         body = self._base_body(session, "CLARIFY", "clarify")
         body.update(
@@ -261,6 +356,7 @@ class Pipeline:
                 "confidence": payload.confidence if payload else 0.0,
                 "product": payload.product if payload else {},
                 "clarify": clarify,
+                "search_used": bool(search_used) or clarify.get("source") == "ai-search",
                 "raw_model": identification.model,
                 "degraded": identification.degraded,
             }

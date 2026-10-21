@@ -114,10 +114,11 @@ def zero_cost_check(rules, features) -> bool:
     print(f"\nzero-cost layer\nexact hit on 'Vitasoy lemon tea' -> mode={result['mode']}, api calls={counter.calls}  [{'PASS' if ok else 'FAIL'}]")
 
     fuzzy = pipeline.identify("Trea")
-    fuzzy_ok = (
-        counter.calls == 1  # a 4-letter typo with no close keyword is re-judged by the model, not guessed
-        and any(check["name"] == "typo" for check in [{"name": "typo"}])
-    )
+    # A 4-letter typo with no close keyword is re-judged by the model, not
+    # guessed locally. The model answers CLARIFY, and a bare single word in
+    # that state is escalated to product search (one extra call) instead of
+    # being asked "which packaging do you see?" - see pipeline._is_bare_noun.
+    fuzzy_ok = counter.calls == 2
     print(
         "typo handling\n'Trea' -> delegated to the model for re-judgement "
         f"(api calls={counter.calls})  [{'PASS' if fuzzy_ok else 'FAIL'}]"
@@ -126,7 +127,7 @@ def zero_cost_check(rules, features) -> bool:
     overlap = pipeline.identify("ramen")
     overlap_ok = (
         overlap["status"] == "CLARIFY"
-        and counter.calls == 2  # product word without a container word -> never guessed locally
+        and counter.calls == 4  # identify + product search; never guessed locally
     )
     print(
         "product fragment\n'ramen' -> "
@@ -137,7 +138,7 @@ def zero_cost_check(rules, features) -> bool:
     typo_ok = (
         typo_hit["status"] == "OK"
         and typo_hit["mode"] == "fuzzy"
-        and counter.calls == 2  # the typo rescue still answers locally
+        and counter.calls == 4  # the typo rescue still answers locally, no extra call
         and bool(typo_hit.get("notes"))
     )
     print(

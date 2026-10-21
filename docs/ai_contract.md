@@ -14,7 +14,7 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 | `clarify` | question payload, only in `CLARIFY` | |
 | `message` | user-facing copy | `REFUSE`: model-written (schema-cleans, 280-char cap), fixed `refusal.py` copy is the fallback; all other statuses: fixed copy only |
 | `reason` | refusal detail, only in `REFUSE` | `model: not_packaging` etc.; diagnostics, the frontend shows `message` |
-| `search_used` | reserved for AI search | |
+| `search_used` | `CLARIFY/disambiguate` carries `true`; `OK` carries the model's own flag | |
 | `source_hint` | rule id or null | validated against rules.json |
 | `raw_model` | `none / openai / anthropic` | |
 | `mode` | `exact / fuzzy / ai / clarify / clarify_answer / refuse / service_unavailable` | |
@@ -32,6 +32,15 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 
 - Bare brand name (`可口可乐`, `Nestle`) -> model status `BRAND` -> `Identifier.disambiguate` runs on the **search router** (OpenAI client + `enable_search: true`, Qwen/DashScope web search; never the main identify call) -> `CLARIFY` with `clarify.kind = "disambiguate"`, options = product names, hints = packaging phrases, `source = "ai-search"`.
 - A chip click re-identifies the product name (frontend calls `/identify`), it is not an `/answer`.
-- Loop guard: after one disambiguation round (`session.context.disambiguated`), a second `BRAND` degrades to the ordinary packaging clarify.
-- Search failure or `< 2` candidates degrades to the ordinary packaging clarify - never a guess.
+- Loop guard: `session.context.disambiguated` stores the **query text**, and only the identical query degrades to the ordinary packaging clarify. A different word in the same session is not a loop.
+- Search failure does **not** degrade to the packaging question: the card keeps a single honest option, `"<query> (no packaging)"`. Asking "which packaging do you see?" would assume packaging the user may not have.
+- Candidate hygiene (deterministic, in `pipeline._with_unpacked_option`): duplicates are dropped; an `"X (no packaging)"` entry is removed when the same `X` is also listed as packaged, because one product cannot be both.
 - **No packaging assumption**: the search prompt must include an unpackaged candidate (`packaging: "none"`, e.g. "Whole lemon (no packaging)") FIRST whenever the query plausibly names a bare item. Its chip sends the deterministic gate text `no packaging: <item>` -> `REFUSE`/`not_packaging` with a templated message (`refusal.not_packaging_item`), no model call. Hazards still win over it.
+
+## Deterministic guards around CLARIFY (do not rely on the model)
+
+The model is free to be wrong; these rules make two specific wrong answers unreachable:
+
+- **Bulk / category words never refuse as "unpackaged"**: `pipeline._is_bulk_material` covers `tea, coffee, milk, water, juice, rice, flour, sugar, salt, oil, soup, cereal, ...` (plus `茶/咖啡/牛奶/果汁`). If the model answers `REFUSE/not_packaging` for one of them, the query is sent to product search instead - these substances ship in dozens of packagings. A whole fruit (`banana`, `apple`) is not in the list and keeps its refusal.
+- **A bare noun never gets the packaging quiz**: `pipeline._is_bare_noun` = at most two words, no digits, no container word (`bottle/cup/can/box/carton/jar/bag/pack/...`). When the model answers `CLARIFY` for such a query, the packaging question is replaced by product search, because "which packaging do you see on the product?" has no answer when the user typed a flavour and may not be holding anything. `"a bottle"` names a container, so its packaging question stands.
+

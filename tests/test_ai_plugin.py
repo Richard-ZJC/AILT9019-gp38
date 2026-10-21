@@ -260,8 +260,10 @@ def test_brand_disambiguation_flow() -> None:
         result["status"] == "CLARIFY"
         and clarify.get("kind") == "disambiguate"
         and clarify.get("source") == "ai-search"
-        and clarify.get("options") == ["Coca-Cola Classic 330ml can", "Coca-Cola Zero 500ml bottle"]
+        and clarify.get("options")
+        == ["Coca-Cola Classic 330ml can", "Coca-Cola Zero 500ml bottle"]
         and clarify.get("hints", {}).get("Coca-Cola Zero 500ml bottle") == "pet bottle"
+        and result.get("search_used") is True
         and main.calls == 1
         and search.calls == 1
     )
@@ -279,13 +281,15 @@ def test_brand_without_search_degrades() -> None:
     )
     result = pipeline.identify("coca cola")
     clarify = result.get("clarify") or {}
+    # A failed search must NOT drop back to "which packaging do you see?" -
+    # that question assumes a packaging the user may not have.
     ok = (
         result["status"] == "CLARIFY"
-        and "kind" not in clarify
-        and clarify.get("options") == list(FEATURES.ids)
+        and clarify.get("kind") == "disambiguate"
+        and clarify.get("options") == ["coca cola (no packaging)"]
         and search.calls == 1
     )
-    check("12 pipeline: failed search -> ordinary packaging clarify", ok, str(clarify)[:120])
+    check("12 pipeline: failed search keeps the no-packaging escape hatch", ok, str(clarify)[:120])
 
 
 # ------------------------------------------------- 13. refusal reason passthrough
@@ -384,6 +388,157 @@ def test_unpacked_candidate_flow() -> None:
     check("16 pipeline: unpackaged candidate -> deterministic not_packaging", ok, str(second.get("message", "")))
 
 
+def test_bulk_material_never_refused_as_unpackaged() -> None:
+    # "tea" is sold in tins, bottles, cartons and tea bags. Even when the model
+    # calls it "an item without packaging", the deterministic guard sends it to
+    # product search instead of refusing.
+    refusal_payload = json.dumps(
+        {
+            "status": "REFUSE",
+            "reason": "not_packaging",
+            "message": "A Loose tea leaves comes without any packaging.",
+            "confidence": 0.8,
+            "components": [],
+        }
+    )
+    main = FakeClient("openai", [refusal_payload])
+    search = FakeClient(
+        "openai",
+        [json.dumps({"products": [{"name": "Tao Ti Green Tea 1.5L", "packaging": "pet bottle"}]})],
+    )
+    pipeline = Pipeline(
+        RULES,
+        FEATURES,
+        router=Router([main], timeout=5),
+        search_router=Router([search], timeout=5),
+    )
+    result = pipeline.identify("tea")
+    clarify = result.get("clarify") or {}
+    ok = (
+        result["status"] == "CLARIFY"
+        and clarify.get("kind") == "disambiguate"
+        and clarify.get("options") == ["Tao Ti Green Tea 1.5L"]
+        and search.calls == 1
+    )
+    check("17 pipeline: bulk word + not_packaging -> product search, not a refusal", ok, str(clarify)[:140])
+
+
+def test_whole_item_still_refused() -> None:
+    # The guard must not swallow genuine unpackaged items.
+    main = FakeClient(
+        "openai",
+        [
+            json.dumps(
+                {
+                    "status": "REFUSE",
+                    "reason": "not_packaging",
+                    "message": "A whole banana comes without packaging - there is nothing to recycle here.",
+                    "confidence": 0.9,
+                    "components": [],
+                }
+            )
+        ],
+    )
+    pipeline = Pipeline(RULES, FEATURES, router=Router([main], timeout=5))
+    result = pipeline.identify("banana")
+    ok = result["status"] == "REFUSE" and result["reason"] == "model: not_packaging" and main.calls == 1
+    check("18 pipeline: a whole fruit is still refused as unpackaged", ok, result.get("reason", ""))
+
+
+def test_bare_noun_never_asks_about_packaging() -> None:
+    # The user typed a flavour word and told us nothing about packaging; asking
+    # "which packaging do you see?" is unanswerable, so CLARIFY is upgraded to
+    # the product search.
+    clarify_payload = json.dumps(
+        {
+            "status": "CLARIFY",
+            "confidence": 0.9,
+            "components": [],
+            "clarify": {"question": "Which packaging do you see?", "options": ["bottle", "cup"]},
+        }
+    )
+    main = FakeClient("openai", [clarify_payload])
+    search = FakeClient(
+        "openai",
+        [json.dumps({"products": [{"name": "Whole lemon (no packaging)", "packaging": "none"}]})],
+    )
+    pipeline = Pipeline(
+        RULES,
+        FEATURES,
+        router=Router([main], timeout=5),
+        search_router=Router([search], timeout=5),
+    )
+    result = pipeline.identify("lemon")
+    clarify = result.get("clarify") or {}
+    ok = (
+        result["status"] == "CLARIFY"
+        and clarify.get("kind") == "disambiguate"
+        and clarify.get("options", [None])[0] == "Whole lemon (no packaging)"
+        and search.calls == 1
+    )
+    check("19 pipeline: bare flavour word -> product search, never a packaging quiz", ok, str(clarify)[:140])
+
+
+def test_container_word_still_asks_about_packaging() -> None:
+    # "a bottle" DOES name a packaging part, so the packaging question stands.
+    clarify_payload = json.dumps(
+        {
+            "status": "CLARIFY",
+            "confidence": 0.9,
+            "components": [],
+            "clarify": {"question": "Which packaging do you see?", "options": ["bottle", "glass-bottle"]},
+        }
+    )
+    main = FakeClient("openai", [clarify_payload])
+    search = FakeClient("openai", [json.dumps({"products": []})])
+    pipeline = Pipeline(
+        RULES,
+        FEATURES,
+        router=Router([main], timeout=5),
+        search_router=Router([search], timeout=5),
+    )
+    result = pipeline.identify("a bottle")
+    clarify = result.get("clarify") or {}
+    ok = (
+        result["status"] == "CLARIFY"
+        and "kind" not in clarify
+        and clarify.get("options") == ["bottle", "glass-bottle"]
+        and search.calls == 0
+    )
+    check("20 pipeline: a named container keeps the packaging question", ok, str(clarify)[:140])
+
+
+def test_contradictory_unpacked_candidate_dropped() -> None:
+    # Search returned the same chocolate both with and without packaging; the
+    # packaged entry is the only true one, so the phantom twin must go.
+    main = FakeClient("openai", [BRAND_PAYLOAD])
+    search = FakeClient(
+        "openai",
+        [
+            json.dumps(
+                {
+                    "products": [
+                        {"name": "KitKat Cookie Crumble Tablet (no packaging)", "packaging": "none"},
+                        {"name": "KitKat Cookie Crumble Tablet", "packaging": "plastic wrapper"},
+                        {"name": "KitKat Cookie Crumble Tablet", "packaging": "plastic wrapper"},
+                    ]
+                }
+            )
+        ],
+    )
+    pipeline = Pipeline(
+        RULES,
+        FEATURES,
+        router=Router([main], timeout=5),
+        search_router=Router([search], timeout=5),
+    )
+    clarify = pipeline.identify("chocolate").get("clarify") or {}
+    ok = clarify.get("options") == ["KitKat Cookie Crumble Tablet"] and clarify.get("hints", {}).get(
+        "KitKat Cookie Crumble Tablet"
+    ) == "plastic wrapper"
+    check("21 pipeline: 'X (no packaging)' dropped when X is also packaged", ok, str(clarify.get("options")))
+
+
 def main() -> int:
     print("AI plugin tests (fake providers, no network)")
     test_schema_accepts_valid()
@@ -402,6 +557,11 @@ def main() -> int:
     test_refuse_not_packaging_copy()
     test_refuse_message_layers()
     test_unpacked_candidate_flow()
+    test_bulk_material_never_refused_as_unpackaged()
+    test_whole_item_still_refused()
+    test_bare_noun_never_asks_about_packaging()
+    test_container_word_still_asks_about_packaging()
+    test_contradictory_unpacked_candidate_dropped()
 
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     total = len(RESULTS)
