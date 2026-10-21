@@ -143,10 +143,9 @@ class Pipeline:
             return self._refusal(session, refusal.payload("out_of_scope", "model: out of scope"))
 
         if payload.status == "CLARIFY" or self._low_confidence(payload):
+            # payload.clarify already comes from fallback.build (schema delegates),
+            # so question/options/labels/hints/source are always consistent here.
             clarify = payload.clarify or fallback.build(self.features)
-            clarify = {**clarify, "source": "fixed"}
-            if payload.clarify and payload.clarify.get("question"):
-                clarify["question"] = payload.clarify["question"]
             return self._ask(session, clarify, payload, identification)
 
         verdicts = self.adjudicator.resolve_all(payload.components, payload.source_hint, query_text=query)
@@ -192,6 +191,23 @@ class Pipeline:
 
     # ------------------------------------------------------------ response builders
 
+    def _base_body(self, session: Session, status: str, mode: str) -> dict[str, Any]:
+        """The one response envelope. Every branch starts here and overrides."""
+        return {
+            "status": status,
+            "session_id": session.id,
+            "confidence": 0.0,
+            "product": {},
+            "components": [],
+            "clarify": None,
+            "message": "",
+            "search_used": False,
+            "source_hint": None,
+            "raw_model": "none",
+            "mode": mode,
+            "degraded": False,
+        }
+
     def _ask(self, session: Session, clarify: dict[str, Any], payload, identification: Identification) -> dict[str, Any]:
         if not self.sessions.can_ask(session):
             return self._refusal(
@@ -202,20 +218,16 @@ class Pipeline:
 
         self.sessions.note_question(session, clarify)
         session.add_turn("assistant", clarify.get("question", ""))
-        body = {
-            "status": "CLARIFY",
-            "session_id": session.id,
-            "confidence": payload.confidence if payload else 0.0,
-            "product": payload.product if payload else {},
-            "components": [],
-            "clarify": clarify,
-            "message": "",
-            "search_used": False,
-            "source_hint": None,
-            "raw_model": identification.model,
-            "mode": "clarify",
-            "degraded": identification.degraded,
-        }
+        body = self._base_body(session, "CLARIFY", "clarify")
+        body.update(
+            {
+                "confidence": payload.confidence if payload else 0.0,
+                "product": payload.product if payload else {},
+                "clarify": clarify,
+                "raw_model": identification.model,
+                "degraded": identification.degraded,
+            }
+        )
         return self._with_diagnostics(body, identification.attempts)
 
     def _ok(
@@ -246,46 +258,39 @@ class Pipeline:
         session.remember(product=product, components=components)
         self.memory.record({"session_id": session.id, "text": text, "components": components})
 
-        body = {
-            "status": "OK",
-            "session_id": session.id,
-            "confidence": round(float(confidence), 3),
-            "product": product,
-            "components": components,
-            "clarify": None,
-            "message": "",
-            "search_used": bool(search_used),
-            "source_hint": source_hint,
-            "raw_model": model,
-            "mode": mode,
-            "degraded": bool(degraded),
-            "notes": list(notes),
-        }
+        body = self._base_body(session, "OK", mode)
+        body.update(
+            {
+                "confidence": round(float(confidence), 3),
+                "product": product,
+                "components": components,
+                "search_used": bool(search_used),
+                "source_hint": source_hint,
+                "raw_model": model,
+                "degraded": bool(degraded),
+                "notes": list(notes),
+            }
+        )
         return body
 
     def _refusal(self, session: Session, refusal_body: dict[str, Any], raw_model: str = "none") -> dict[str, Any]:
         session.add_turn("assistant", refusal_body.get("message", ""))
-        body = {
-            "status": refusal_body.get("status", "REFUSE"),
-            "session_id": session.id,
-            "confidence": 0.0,
-            "product": session.context.get("product") or {},
-            "components": [],
-            "clarify": None,
-            "message": refusal_body.get("message", refusal.OUT_OF_SCOPE),
-            "reason": refusal_body.get("reason", ""),
-            "search_used": False,
-            "source_hint": None,
-            "raw_model": raw_model,
-            "mode": "refuse",
-            "degraded": False,
-        }
+        body = self._base_body(session, refusal_body.get("status", "REFUSE"), "refuse")
+        body.update(
+            {
+                "product": session.context.get("product") or {},
+                "message": refusal_body.get("message", refusal.OUT_OF_SCOPE),
+                "reason": refusal_body.get("reason", ""),
+                "raw_model": raw_model,
+            }
+        )
         self.memory.record({"session_id": session.id, "refused": body["reason"]})
         return body
 
     def _unavailable(self, session: Session, reason: str, attempts: Sequence[Any] = ()) -> dict[str, Any]:
-        body = self._refusal(session, refusal.payload("service_unavailable", reason), raw_model="none")
-        body["status"] = "SERVICE_UNAVAILABLE"
+        # refusal.payload("service_unavailable") already sets the right status and
+        # message; the only key it cannot know is mode.
+        body = self._refusal(session, refusal.payload("service_unavailable", reason))
         body["mode"] = "service_unavailable"
         return self._with_diagnostics(body, attempts)
 

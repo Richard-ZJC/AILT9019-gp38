@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
+from ..fallback import build as build_clarify
 from ..rules_loader import FeatureSet, Rule
 
 STATUSES = ("OK", "CLARIFY", "REFUSE", "SERVICE_UNAVAILABLE")
@@ -47,12 +48,8 @@ class AIPayload:
 
 
 def fixed_clarify(features: FeatureSet, question: str | None = None) -> dict[str, Any]:
-    return {
-        "question": question or features.question,
-        "options": [feature.id for feature in features.options],
-        "labels": {feature.id: feature.label for feature in features.options},
-        "hints": {feature.id: feature.hint for feature in features.options},
-    }
+    """Thin alias - fallback.build is the single clarify builder."""
+    return build_clarify(features, question)
 
 
 def _as_confidence(value: Any) -> float:
@@ -115,14 +112,8 @@ def _clean_clarify(
         # A question with a single answer is not a question - show the full list.
         notes.append("clarify.options: fewer than 2 choices -> fixed option list")
         return fixed_clarify(features, question if isinstance(question, str) and question.strip() else None)
-    labels = {feature.id: feature.label for feature in features.options}
-    hints = {feature.id: feature.hint for feature in features.options}
-    return {
-        "question": question.strip() if isinstance(question, str) and question.strip() else features.question,
-        "options": picked,
-        "labels": {option: labels[option] for option in picked},
-        "hints": {option: hints[option] for option in picked},
-    }
+    clean_question = question.strip() if isinstance(question, str) and question.strip() else None
+    return build_clarify(features, clean_question, picked)
 
 
 def _clean_explanations(value: Any, notes: list[str]) -> dict[str, str]:

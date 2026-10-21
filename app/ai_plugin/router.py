@@ -13,7 +13,7 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 from typing import Any, Iterator, Sequence
 
-SERVICE_UNAVAILABLE_COPY = "This request involves sensitive information and cannot be processed right now."
+# Unavailable-copy lives in refusal.SERVICE_DOWN - never duplicate it here.
 
 
 @dataclass

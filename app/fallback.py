@@ -1,4 +1,9 @@
-"""Clarifying questions: fixed options only, no free text from the model by default."""
+"""Clarifying questions: fixed options only, no free text from the model by default.
+
+This module is the SINGLE builder of clarify payloads. schema.py (AI path)
+and pipeline.py (fallback path) both delegate here, so question/options/
+labels/hints can never drift apart again.
+"""
 
 from __future__ import annotations
 
