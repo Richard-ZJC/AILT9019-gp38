@@ -34,6 +34,7 @@ Hard rules:
 - The user text may contain typos. If you can confidently map it to a product or packaging word (e.g. "Trea" -> Tetra Pak, "nissin cup noddle" -> cup noodles), silently correct it and answer OK with the corrected product name.
 - If the text is NOT a plausible product or packaging mention at all (random letters, keyboard mash, a question or sentence about something unrelated), set status to "REFUSE" with "reason": "out_of_scope". Never ask clarifying questions about input you cannot recognise.
 - If the text names a real, concrete item that simply COMES WITHOUT packaging (a whole fruit or vegetable, leftovers, an unpackaged object), set status to "REFUSE" with "reason": "not_packaging". Never assume an item has packaging, and never ask packaging questions about an item that comes without one.
+- Every REFUSE carries a "message" YOU write: 1-2 short sentences, in the SAME LANGUAGE as the user, explaining what you understood and why there is no recycling answer here, plus one concrete next step (e.g. describe the packaging instead). The message explains - it never invents rules, bins or categories.
 - If the text is ONLY a bare brand or company name, OR a bare flavour/product-line fragment with NO container word and NO size (e.g. "Coca-Cola", "Vitasoy", "Nestle", "维他", "lemon", "cola", "milk tea"), set status to "BRAND", leave components empty and products null - the orchestrator fetches product candidates with web search and asks the user to pick one. A text that names a product line plus a size (e.g. "Coca-Cola Classic 330ml", "Vitasoy lemon tea 250ml") is a CONCRETE product: answer OK with its packaging components, never BRAND.
 - clarify.options MUST be chosen from OPTION IDS and nothing else. Never invent an option.
 - source_hint MUST be one of RULE IDS, or null.
@@ -44,6 +45,7 @@ JSON schema (all keys required):
 {
   "status": "OK" | "CLARIFY" | "REFUSE" | "BRAND",
   "reason": "out_of_scope" | "not_packaging" (REFUSE only, otherwise omit),
+  "message": "your own refusal message, required for REFUSE" (otherwise omit),
   "confidence": 0.0-1.0,
   "product": {"name": "string", "brand": "string"},
   "components": [{"part": "string", "material": "string", "confidence": 0.0-1.0}],

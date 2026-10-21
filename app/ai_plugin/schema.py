@@ -43,6 +43,7 @@ class AIPayload:
     search_used: bool = False
     source_hint: str | None = None
     reason: str = ""
+    message: str = ""
     raw_model: str = ""
     notes: list[str] = field(default_factory=list)
 
@@ -213,6 +214,20 @@ def validate(
         notes.append(f"reason: '{reason}' is not a known refusal reason -> dropped")
         reason = ""
 
+    # REFUSE copy is model-written (so it can follow the user's language),
+    # but only within the fixed envelope: cleaned, length-capped, and backed
+    # by the refusal.py copy whenever the model fails to produce one.
+    message = raw.get("message")
+    if isinstance(message, str) and message.strip():
+        message = " ".join(message.split())[:280]
+        if status != "REFUSE":
+            notes.append("message: dropped, only REFUSE may carry one")
+            message = ""
+    else:
+        message = ""
+        if status == "REFUSE":
+            notes.append("message: missing for REFUSE -> fixed refusal copy")
+
     # BRAND passes through even with empty products: pipeline._disambiguate owns
     # the degrade decision (it can still fetch candidates via web search).
 
@@ -231,6 +246,7 @@ def validate(
         search_used=bool(raw.get("search_used", False)),
         source_hint=source_hint,
         reason=reason,
+        message=message,
         raw_model=raw_model or str(raw.get("raw_model") or ""),
         notes=notes,
     )

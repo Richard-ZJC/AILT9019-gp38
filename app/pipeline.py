@@ -144,7 +144,12 @@ class Pipeline:
 
         if payload.status == "REFUSE":
             kind = payload.reason or "out_of_scope"
-            return self._refusal(session, refusal.payload(kind, f"model: {kind}"))
+            body = refusal.payload(kind, f"model: {kind}")
+            # The model's own message wins (it follows the user's language);
+            # the fixed refusal.py copy is the fallback, never a second voice.
+            if payload.message:
+                body["message"] = payload.message
+            return self._refusal(session, body)
 
         if payload.status == "BRAND":
             return self._disambiguate(session, query, payload, identification)

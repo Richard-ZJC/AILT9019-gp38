@@ -315,6 +315,37 @@ def test_refuse_not_packaging_copy() -> None:
     check("14 pipeline: model not_packaging -> dedicated copy", ok, result.get("message", ""))
 
 
+def test_refuse_message_layers() -> None:
+    # Model-written message wins; missing message falls back to refusal.py copy.
+    scripted = FakeClient(
+        "openai",
+        [
+            json.dumps(
+                {
+                    "status": "REFUSE",
+                    "reason": "not_packaging",
+                    "message": " This is a banana -  nothing to recycle!  ",
+                    "confidence": 0.7,
+                    "components": [],
+                }
+            ),
+            json.dumps({"status": "REFUSE", "reason": "not_packaging", "confidence": 0.7, "components": []}),
+            json.dumps({"status": "OK", "message": "sneaky", "components": [{"part": "cup", "material": "paper", "confidence": 0.9}]}),
+        ],
+    )
+    pipeline = Pipeline(RULES, FEATURES, router=Router([scripted], timeout=5))
+    first = pipeline.identify("banana")
+    second = pipeline.identify("banana", session_id=first["session_id"])
+    third = pipeline.identify("banana", session_id=first["session_id"])
+    ok = (
+        first["message"] == "This is a banana - nothing to recycle!"
+        and second["message"] == refusal.NOT_PACKAGING
+        and third["message"] != "sneaky"  # OK must not carry a message
+        and scripted.calls == 3
+    )
+    check("15 pipeline: model message wins, fixed copy is the fallback", ok, f"{first['message']!r} / {second['message']!r}")
+
+
 def main() -> int:
     print("AI plugin tests (fake providers, no network)")
     test_schema_accepts_valid()
@@ -331,6 +362,7 @@ def main() -> int:
     test_brand_without_search_degrades()
     test_refusal_reason_passthrough()
     test_refuse_not_packaging_copy()
+    test_refuse_message_layers()
 
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     total = len(RESULTS)

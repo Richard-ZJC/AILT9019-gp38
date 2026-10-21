@@ -12,7 +12,7 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 | `product` | `{name, brand}` | may be empty |
 | `components` | verdicts, only in `OK` | |
 | `clarify` | question payload, only in `CLARIFY` | |
-| `message` | refusal copy / empty | copy lives in `refusal.py` only |
+| `message` | user-facing copy | `REFUSE`: model-written (schema-cleans, 280-char cap), fixed `refusal.py` copy is the fallback; all other statuses: fixed copy only |
 | `reason` | refusal detail, only in `REFUSE` | `model: not_packaging` etc.; diagnostics, the frontend shows `message` |
 | `search_used` | reserved for AI search | |
 | `source_hint` | rule id or null | validated against rules.json |
@@ -25,7 +25,7 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 1. **Clarify payload**: built ONLY by `fallback.build` (packaging) or `fallback.build_products` (brand disambiguation); schema.py delegates; pipeline never re-assembles.
 2. **Envelope**: built ONLY by `pipeline._base_body`; branches `update()` their own keys on top.
 3. **Model output is never trusted**: `schema.validate` repairs or downgrades; a malformed answer can never become a category.
-4. **Refusal copy**: lives in `refusal.py`, one string per reason, never duplicated elsewhere. Five reasons: `out_of_scope` (unrecognisable input), `not_packaging` (a real item that comes without packaging - a whole lemon, leftovers; the model signals it via `reason: "not_packaging"`, schema whitelists it, everything unknown falls back to `out_of_scope`), `hazard`, `too_many_questions`, `service_unavailable`.
+4. **Refusal structure is fixed, copy is layered**: `refusal.py` stays the single source of the five fixed copies (`out_of_scope`, `not_packaging`, `hazard`, `too_many_questions`, `service_unavailable`). For model-driven REFUSE only, the model may write its own `message` (cleaned + capped by schema) which replaces the fixed copy; a missing/invalid message falls back to `refusal.py`. Local refusals (hazard net, clarify budget, service down) never use model text.
 5. **Options**: packaging clarify uses only ids from `features.json`; anything else is replaced with the fixed list.
 
 ## Brand disambiguation (web search)
