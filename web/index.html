@@ -96,26 +96,7 @@
   }
   .options button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .options button.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
-  .clarify-note {
-    margin-top: var(--s3); padding: var(--s3); border-radius: 14px;
-    background: var(--accent-soft); display: flex; gap: var(--s3); align-items: flex-start;
-    animation: reveal .18s ease-out;
-  }
-  .clarify-note:empty { display: none; }
   @keyframes reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-  .note-body { min-width: 0; }
-  .note-body strong { display: block; font-size: 15px; margin-bottom: 2px; }
-  .note-body p { margin: 0; font-size: 14px; line-height: 1.55; color: #333b38; }
-  .wiki-link {
-    display: inline-block; margin-top: var(--s1); font-size: 13px;
-    color: var(--muted); text-decoration: none; border-bottom: 1px dashed var(--line);
-  }
-  .wiki-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
-  .note-confirm {
-    margin-top: var(--s2); padding: 0; border: 0; background: none;
-    color: var(--accent); font-weight: 650; font-size: 14px;
-    border-bottom: 1.5px solid var(--accent); padding-bottom: 1px;
-  }
   /* WeChat-style free-text escape hatch under the clarify options */
   .alt-row { margin-top: var(--s3); display: flex; align-items: center; }
   .alt-toggle {
@@ -137,7 +118,7 @@
   }
   .free-send:hover { filter: brightness(1.08); }
   .free-send svg { width: 19px; height: 19px; }
-  @media (prefers-reduced-motion: reduce) { .clarify-note { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .free-input { animation: none; } }
   .error { color: var(--warn); font-size: 14px; margin-top: var(--s3); }
   footer { margin-top: var(--s6); color: var(--muted); font-size: 13px; }
   footer a { color: var(--accent); text-decoration: none; }
@@ -266,9 +247,7 @@ function render(payload) {
       `<button type="button" data-choice="${escapeHtml(id)}">${escapeHtml(clarify.labels?.[id] || id)}</button>`).join("");
     resultEl.innerHTML = `<div class="card">
       <p class="product">${escapeHtml(clarify.question || "Which packaging do you see?")}</p>
-      ${disambiguate ? `<div class="clarify-note" style="display:block">Searched the web for real products matching this word — pick the closest one, or the no-packaging option.</div>` : ""}
       <div class="options">${buttons}</div>
-      <div class="clarify-note" id="clarify-note"></div>
       <div class="alt-row">
         <button type="button" class="alt-toggle" id="alt-toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -302,45 +281,21 @@ function render(payload) {
       if (event.key === "Enter") { event.preventDefault(); sendFree(); }
     });
     document.getElementById("free-send").addEventListener("click", sendFree);
-    // Real Wikipedia articles (all verified 200) instead of abstract icons:
-    // users who don't know what "Tetra Pak" means can see photos and text.
-    const WIKI = {
-      "bottle": "Plastic_bottle",
-      "glass-bottle": "Glass_bottle",
-      "carton": "Tetra_Pak",
-      "cup-paper": "Paper_cup",
-      "cup": "Foam_food_container",
-      "can": "Beverage_can",
-    };
-    let selected = null;
-    const noteEl = document.getElementById("clarify-note");
-    const showNote = choice => {
-      const label = escapeHtml(clarify.labels?.[choice] || choice);
-      const hint = escapeHtml(clarify.hints?.[choice] || "This packaging type is covered by the campus rule set.");
-      const article = WIKI[choice];
-      const wiki = article
-        ? `<a class="wiki-link" href="https://en.wikipedia.org/wiki/${article}" target="_blank" rel="noopener">Not sure what this looks like? See ${escapeHtml(article.replace(/_/g, " "))} on Wikipedia ↗</a>`
-        : "";
-      noteEl.innerHTML = `<div class="note-body"><strong>${label}</strong><p>${hint}</p>${wiki}
-        <button class="note-confirm" type="button">This is it — answer with this →</button></div>`;
-      noteEl.querySelector(".note-confirm").addEventListener("click", () => answer(choice));
-    };
     resultEl.querySelectorAll("[data-choice]").forEach(btn =>
       btn.addEventListener("click", () => {
+        const choice = btn.dataset.choice;
+        // A product chip (disambiguate) means "identify THIS product" - a full
+        // round-trip. The unpackaged candidate (hint "none") takes the
+        // deterministic no-packaging gate instead.
         if (disambiguate) {
-          // A product chip means "identify THIS product" - a full round-trip,
-          // not the packaging confirm panel. The unpackaged candidate
-          // (hint "none") takes the deterministic no-packaging gate instead.
-          const choice = btn.dataset.choice;
           const text = clarify.hints?.[choice] === "none"
             ? "no packaging: " + choice.replace(/ \(no packaging\)$/i, "")
             : choice;
           identify(text);
           return;
         }
-        selected = btn.dataset.choice;
-        resultEl.querySelectorAll("[data-choice]").forEach(b => b.classList.toggle("selected", b === btn));
-        showNote(selected);
+        // A packaging option is an immediate answer - no second confirmation step.
+        answer(choice);
       }));
     return;
   }
