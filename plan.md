@@ -231,7 +231,7 @@ AILT9019-gp38/
 | T9 | 正式评测（10+5+5）并修错 | 🟥 | W9–10 | ✅ | run_tests | mock 21/22、检查 3/3、插件 9/9、冒烟 9/9；live 路径曾 19/20，近期改动后待复跑一次 |
 | T10 | Demo + 文档定稿 | 🟥 | W11–12 | ⬜ | run_tests | 对齐 W12 验收 |
 | T11 | 🟦 图片上传 + 多模态识别 | 🟦 | should | ⬜ | 新增图例用例 | 接口已在 T4d 预留 |
-| T12 | 🟦 fuzzy.py difflib 模糊识别 | 🟦 | should | ✅（并入 T3） | 相似词/词重叠用例 | **实现位置变了**：落在 `matcher.fuzzy_match`（Damerau-Levenshtein，非 difflib），两阶段：词重叠 → typo；统一判据=单词只属于一条规则；`fuzzy.py` 仍是空壳可删 |
+| T12 | 🟦 fuzzy.py difflib 模糊识别 | 🟦 | should | ✅（并入 T3，2026-10-22 加判据门） | 相似词/词重叠用例 | **实现位置变了**：落在 `matcher.fuzzy_match`（Damerau-Levenshtein，非 difflib），两阶段：词重叠 → typo；统一判据=单词只属于一条规则；**判据门（10-22）**：查询必须本身含部件/材质词（词表由 rules.json 的 parts/materials 生成，含拼写近似）才允许 fuzzy 作答，裸商品词（coke/nissin）一律交 AI 层搜索反问，杜绝「coke→Metal」式 0.9 置信瞎猜；`fuzzy.py` 仍是空壳可删 |
 | T13 | 🟦 SSE 流式 + 异步双路（threading） | 🟦 | should | ⬜ | 流式/进度事件 | `/identify/stream` 501→200 |
 | T14 | 🟦 memory.py 本地记忆落盘 | 🟦 | should | 🔶 | 落盘/关闭开关 | 已实现（`save_memory` 开关 + data/memory/）；**与 proposal「不存储查询」红线冲突，见 §8.2-P5** |
 | T15 | 🟦 AI 搜索 + AI 动态反问文案 | 🟦 | should | ✅（2026-10-22） | 搜索标记用例 | **品牌反问已上线**：裸品牌名 → 模型 status `BRAND` → `Identifier.disambiguate` 走搜索路由（百炼 `enable_search:true` 实测生效）→ 商品候选列表（kind=disambiguate）→ 用户点选 → 重新识别出建议；搜索失败/候选<2 降级为普通包装反问；防回环护栏（一轮后再 BRAND → 包装反问）；契约见 docs/ai_contract.md |

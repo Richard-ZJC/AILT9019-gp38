@@ -68,6 +68,26 @@ _OVERLAP_MIN_LENGTH = 3
 _STOPWORDS = {"the", "and", "with", "from", "for", "that", "this", "have", "just"}
 
 
+def _sortable_words(rules: Sequence[Rule]) -> frozenset[str]:
+    """Every part/material word in rules.json - the vocabulary of packaging."""
+    words: set[str] = set()
+    for rule in rules:
+        for value in (*rule.parts, *rule.materials):
+            words.update(normalise(value).split())
+    return frozenset(words)
+
+
+def _touches_packaging(words: Sequence[str], sortable: frozenset[str]) -> bool:
+    """True when some query word IS a part/material word or nearly spells one."""
+    for word in words:
+        if word in sortable:
+            return True
+        limit = 1 if len(word) <= 5 else _FUZZY_MAX_DISTANCE
+        if any(_levenshtein(word, target) <= limit for target in sortable):
+            return True
+    return False
+
+
 def _keyword_word_index(rules: Sequence[Rule]) -> dict[str, set[str]]:
     """Word -> rule ids whose keywords contain that word (whole-word)."""
     index: dict[str, set[str]] = {}
@@ -129,9 +149,20 @@ def fuzzy_match(text: str, rules: Sequence[Rule]) -> Match | None:
     Refusal rules never fuzzy-match: 'Nestle' is 2 edits from the refusal
     keyword 'needle', and a spelling guess must never refuse a real query.
     Hazards are still caught by the exact layer and refusal.hazard_hit.
+
+    GATE - the single criterion that keeps fuzzy honest: the QUERY must
+    itself contain a part/material word (or a near-miss of one). A bare
+    brand or product word ('coke', 'nissin', 'vitasoy') lets the machine
+    guess a container the user never said, so it is refused here and
+    delegated to the AI layer (which can search-disambiguate instead).
+    The exact layer is exempt: its keyword phrases are curated in
+    rules.json by humans, not guessed.
     """
     all_words = normalise(text).split()
     if not all_words or len(all_words) > 3:
+        return None
+
+    if not _touches_packaging(all_words, _sortable_words(rules)):
         return None
 
     rules = [rule for rule in rules if not rule.is_refusal]

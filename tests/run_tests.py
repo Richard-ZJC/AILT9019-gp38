@@ -125,16 +125,26 @@ def zero_cost_check(rules, features) -> bool:
 
     overlap = pipeline.identify("ramen")
     overlap_ok = (
-        overlap["status"] == "OK"
-        and overlap["mode"] == "fuzzy"
-        and counter.calls == 1  # still zero additional calls: word-overlap answered locally
-        and bool(overlap.get("notes"))
+        overlap["status"] == "CLARIFY"
+        and counter.calls == 2  # product word without a container word -> never guessed locally
     )
     print(
-        "word overlap\n'ramen' -> "
-        f"{overlap['status']}/{overlap['mode']} {categories_of(overlap)} (api calls={counter.calls})  [{'PASS' if overlap_ok else 'FAIL'}]"
+        "product fragment\n'ramen' -> "
+        f"{overlap['status']}/{overlap['mode']} (delegated, api calls={counter.calls})  [{'PASS' if overlap_ok else 'FAIL'}]"
     )
-    return ok and fuzzy_ok and overlap_ok
+
+    typo_hit = pipeline.identify("aluminium cann")
+    typo_ok = (
+        typo_hit["status"] == "OK"
+        and typo_hit["mode"] == "fuzzy"
+        and counter.calls == 2  # the typo rescue still answers locally
+        and bool(typo_hit.get("notes"))
+    )
+    print(
+        "typo rescue\n'aluminium cann' -> "
+        f"{typo_hit['status']}/{typo_hit['mode']} {categories_of(typo_hit)} (api calls={counter.calls})  [{'PASS' if typo_ok else 'FAIL'}]"
+    )
+    return ok and fuzzy_ok and overlap_ok and typo_ok
 
 
 def clarify_flow_check(pipeline: Pipeline) -> bool:
