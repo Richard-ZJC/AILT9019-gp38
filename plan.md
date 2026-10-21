@@ -218,23 +218,23 @@ AILT9019-gp38/
 | T1 | rules.json 初版（10–15 条，英文，含来源+日期+action） | 🟥 | W5 | ✅ | rules_loader 校验 | 实为 **16 条**（HKU photo guide 组件粒度更细）；来源已核对 wastereduction.hku.hk |
 | T2 | rules_loader.py（含 REFUSE 条目校验） | 🟥 | W6–8 | ✅ | 校验用例 | fail-fast：缺字段/空来源/未知 category 直接退出 |
 | T2a | session.py（session_id / 轮次 / 上下文 / 过期） | 🟥 | W6–8 | ✅ | 测试⑧ | 2 轮上限在服务端，30 分钟过期 |
-| T3 | matcher.py + match.py（唯一裁决口） | 🟥 | W6–8 | ✅ | 品牌组 + 0成本计数 | 0 成本命中 → API 调用计数 = 0 |
+| T3 | matcher.py + match.py（唯一裁决口） | 🟥 | W6–8 | ✅ | 品牌组 + 0成本计数 | 0 成本命中 → API 计数=0；**已含两阶段模糊层**（词重叠 + Damerau-Levenshtein typo，均要求「单词→唯一规则」的区分性，否则交 AI） |
 | T4 | openai_client.py + anthropic_client.py（非流式） | 🟥 | W6–8 | ✅ | 测试① | 两头已用真实 key 实测（百炼网关） |
 | T4a | router.py（注入 providers / 10s 超时不重试 / failover） | 🟥 | W6–8 | ✅ | 测试②③⑤ | 线程硬超时，超时只 failover |
 | T4b | schema.py（模版 + options/source_hint 校验 + 降级） | 🟥 | W6–8 | ✅ | 测试①④⑥⑦ | 非法 hint→null；越界 option→固定清单 |
 | T4c | pipeline.py 编排（0成本→AI→裁决→输出） | 🟥 | W6–8 | ✅ | run_tests | 四态 + `mode` 字段标明路径 |
 | T4d | identify.py（合并解释的 prompt） | 🟥 | W6–8 | ✅ | 品牌组 | 1 次调用出解释，失败回退规则原文 |
-| T5 | fallback.py 固定选项反问 + 2 轮上限 | 🟥 | W6–8 | ✅ | 低置信组 | 选项唯一来源 features.json（12 项，含 cup / cup-paper、box / box-foam 的材质区分） |
+| T5 | fallback.py 固定选项反问 + 2 轮上限 | 🟥 | W6–8 | ✅ | 低置信组 | 选项唯一来源 features.json；**已收敛为 7 项按字母序**（含一行 hint，源自规则）；点击出说明面板（SVG 图标）+ 内联确认；另有**微信式自输入**出口（键盘图标弹输入框，同一 session 计轮） |
 | T6 | refusal.py（本地 hazards + 未匹配 + 全挂） | 🟥 | W6–8 | ✅ | 不支持组 | 四类拒答话术集中一处 |
-| T7 | server.py + web/index.html（英文 UI，非流式） | 🟥 | W6–8 | ✅ | smoke_test | 9/9 冒烟通过；`/identify/stream` 501 |
+| T7 | server.py + web/index.html（英文 UI，非流式） | 🟥 | W6–8 | ✅ | smoke_test | 9/9 冒烟；`/identify/stream` 501；UI 已多轮迭代：响应式（clamp + 560/1000px 断点）、间距系统、反问选项单行横滑、结果卡重排、loose-match 横幅 |
 | T8 | README（英文：setup / key / samples / supported） | 🟥 | W6–8 | ✅ | — | 含 16 条规则来源表与日期口径 |
-| T9 | 正式评测（10+5+5）并修错 | 🟥 | W9–10 | ✅ | run_tests | 生产路径 19/20、AI-only 19–20/20、mock 20/20 |
+| T9 | 正式评测（10+5+5）并修错 | 🟥 | W9–10 | ✅ | run_tests | mock 21/22、检查 3/3、插件 9/9、冒烟 9/9；live 路径曾 19/20，近期改动后待复跑一次 |
 | T10 | Demo + 文档定稿 | 🟥 | W11–12 | ⬜ | run_tests | 对齐 W12 验收 |
 | T11 | 🟦 图片上传 + 多模态识别 | 🟦 | should | ⬜ | 新增图例用例 | 接口已在 T4d 预留 |
-| T12 | 🟦 fuzzy.py difflib 模糊识别 | 🟦 | should | ⬜ | 相似词用例 | 未实现返回 None |
+| T12 | 🟦 fuzzy.py difflib 模糊识别 | 🟦 | should | ✅（并入 T3） | 相似词/词重叠用例 | **实现位置变了**：落在 `matcher.fuzzy_match`（Damerau-Levenshtein，非 difflib），两阶段：词重叠 → typo；统一判据=单词只属于一条规则；`fuzzy.py` 仍是空壳可删 |
 | T13 | 🟦 SSE 流式 + 异步双路（threading） | 🟦 | should | ⬜ | 流式/进度事件 | `/identify/stream` 501→200 |
-| T14 | 🟦 memory.py 本地记忆落盘 | 🟦 | should | ⬜ | 落盘/关闭开关 | 与 proposal 红线同步 |
-| T15 | 🟦 AI 搜索 + AI 动态反问文案 | 🟦 | should | ⬜ | 搜索标记用例 | `search_used` |
+| T14 | 🟦 memory.py 本地记忆落盘 | 🟦 | should | 🔶 | 落盘/关闭开关 | 已实现（`save_memory` 开关 + data/memory/）；**与 proposal「不存储查询」红线冲突，见 §8.2-P5** |
+| T15 | 🟦 AI 搜索 + AI 动态反问文案 | 🟦 | should | 🔶 | 搜索标记用例 | 动态反问**已实现一半**：模型可自带 clarify.question（schema 校验），fallback 文案固定；AI 搜索 `search_used` 未做 |
 
 ### 8.1 本轮实现记录（与计划的偏差，需团队确认）
 
@@ -253,8 +253,23 @@ AILT9019-gp38/
 | `extra_body` | 无 | 有 | 网关私有开关不能写进通用客户端，否则真 OpenAI/Anthropic 会 400 |
 | 测试开关 | 无 | `pipeline.use_fast_path` + `run_tests --no-fast-path` | 不关掉关键词层，品牌组永远走不到模型，等于没测 AI |
 | 反问选项粒度 | 部件级（cup / box …） | 部分部件加材质变体（`cup` vs `cup-paper`、`box` vs `box-foam`） | 模型只会问「塑料还是纸」，但只有部件级选项时它就只给 1 个答案；schema 现要求 ≥2 个选项，否则回落完整清单 |
+| 反问选项数量 | proposal 示例 6 类 | **收敛 12→7 项**，按字母序，每项带 hint | 用户反馈 12 个难选；两个 cup 不合并（纸杯→Tetra Pak、塑料杯→Plastic 路由不同），box 整组撤出兜底清单 |
+| 模糊层 | 🟦 difflib 选作 | **词重叠 + Damerau-Levenshtein typo 两阶段，均已实现**，统一判据「单词→唯一规则」 | 用户需求驱动（"Trea" 案件）；歧义词（bottle/lid 等跨多规则）不猜，交 AI 重判 |
+| 反问出口 | 仅固定选项 | 增加**自输入**：键盘图标弹出输入框，提交走 /identify 同一 session | 用户需求（微信输入风格）；2 轮上限不受影响 |
 
-**验证状态**：`run_tests.py` mock 20/20 · `run_tests.py --live` 19/20 · `run_tests.py --live --no-fast-path` 19–20/20 · `test_ai_plugin.py` 8/8 · `smoke_test.py` 9/9。唯一不稳定用例是 `l03 "some snack wrapper"`：模型有时直接判 plastic packaging，有时反问——属真实判断题，非链路 bug。
+**验证状态（2026-10-22）**：`run_tests.py` mock **21/22（95%）** · 检查 3/3 · `test_ai_plugin.py` **9/9** · `smoke_test.py` 9/9 · `--live` 曾 19/20（改动后待复跑）。唯一 mock 未过项：`u07`（自然句子 mock 认不出，真模型 REFUSE 已实测）。
+
+## 8.2 Proposal 对齐检查（2026-10-22，对照 Project Proposal revise(1)）
+
+| # | Proposal 要求 | 现状 | 缺口 / 动作 |
+|---|---|---|---|
+| P1 | 评测品牌 10 条：维他柠檬茶 / Nissin / **Tempo tissue** / Coca-Cola can / Starbucks cup / McDonald's paper bag / instant noodle wrapper / milk tea cup / plastic water bottle / glass jar | 用例集覆盖其中 6 条（Vitasoy、Nissin、Starbucks、McDonald's bag、Bonaqua≈water bottle、Perrier≈glass jar），wrapper/lid 有变体用例 | **Tempo tissue 无规则可匹配**（rules.json 无 tissue）→ 要么补一条 paper-general 关键词（tissue 空盒/纸巾盒是否可回收需查官方指南），要么记为「不覆盖→拒答」并写进文档；**Coca-Cola can、milk tea cup、维他柠檬茶（中文）未进用例集** → 补 3 条用例 |
+| P2 | 中文查询（should-have） | ⬜ 未做；`normalise()` 会把中文剥掉，中文输入全部落到 AI 路径（真模型大概率能答，但不是设计保证） | 输入层加繁简/全半角归一 + rules.json 加中文关键词（维他柠檬茶等）；排在 T10 前后，与团队确认优先级 |
+| P3 | AI 模型带 search / product lookup | ⬜ `search_used` 恒 false | 百炼网关若支持 `enable_search`，经 `extra_body` 注入即可试点；模型不确定的品牌（Tempo？）可借搜索兜底 |
+| P4 | 测试日志（should-have：basic test log with pass/fail） | ⬜ run_tests 输出只在终端 | `run_tests.py` 落一份 `tests/TESTLOG.md`（时间戳 + 分组结果），每次评测覆盖 |
+| P5 | 「App 不存储用户查询」 | **冲突**：session 内存轮次 + memory.py 可落盘 data/memory/（`save_memory` 开关） | plan §4.11 已修订为「本地会话记忆 + 可关闭」；**需同步回 proposal**，且 README 缺 Data limits/privacy 段（proposal §4 明确要求） |
+| P6 | README：安装 / 启动 / API key / 示例 / supported items | ✅ 已有 | 补 Data limits & privacy 一段（P5 一起改） |
+| P7 | 时间线 W5 提案 / W6–8 构建 / W9–10 测评 / W11–12 定稿 | **进度超前**：T0–T9 已完成（现处 W6–8 窗口），W9–10 只剩复跑 live 回归 + 修漏 | 剩余重心：T10 文档定稿 + P1–P4 缺口 |
 
 ## 9. 里程碑（对齐 proposal timeline）
 
