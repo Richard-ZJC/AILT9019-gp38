@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -62,11 +63,20 @@ def judge(case: dict[str, Any], result: dict[str, Any]) -> tuple[bool, str]:
     if result.get("status") != expected_status:
         return False, f"status {result.get('status')} != {expected_status} ({result.get('message', '')[:60]})"
 
+    actual = categories_of(result)
+
+    # A product can legitimately have several parts (cup + lid + sleeve), so the
+    # expectation is "these categories must appear", plus an explicit blacklist.
     expected_categories = case.get("expect_categories")
     if expected_categories:
-        actual = categories_of(result)
-        if actual != sorted(expected_categories):
-            return False, f"categories {actual} != {sorted(expected_categories)}"
+        missing = [category for category in expected_categories if category not in actual]
+        if missing:
+            return False, f"missing {missing} in {actual}"
+
+    forbidden = case.get("forbid_categories") or []
+    present = [category for category in forbidden if category in actual]
+    if present:
+        return False, f"forbidden {present} present in {actual}"
 
     if expected_status == "OK":
         for item in result.get("components", []):
@@ -85,11 +95,13 @@ def run_group(name: str, pipeline: Pipeline, cases: list[dict[str, Any]]) -> tup
     print(f"\n{name} ({len(cases)} cases)")
     passed = 0
     for case in cases:
+        started = time.monotonic()
         result = pipeline.identify(case["text"])
+        elapsed = time.monotonic() - started
         ok, why = judge(case, result)
         passed += ok
         mark = "PASS" if ok else "FAIL"
-        print(f"  [{mark}] {case['id']} {case['text'][:48]:<48} -> {result.get('status'):<19} {'' if ok else why}")
+        print(f"  [{mark}] {case['id']} {case['text'][:40]:<40} -> {result.get('status'):<19} {elapsed:5.1f}s {'' if ok else why}")
     print(f"  {passed}/{len(cases)} passed ({passed / len(cases):.0%})")
     return passed, len(cases)
 
@@ -121,20 +133,29 @@ def clarify_flow_check(pipeline: Pipeline) -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="run the evaluation cases")
     parser.add_argument("--live", action="store_true", help="use the real providers instead of the mock")
+    parser.add_argument(
+        "--no-fast-path",
+        action="store_true",
+        help="disable the zero-cost keyword layer so every case exercises the AI path",
+    )
     args = parser.parse_args(argv)
 
     rules = load_rules()
     features = load_features()
+    use_fast_path = not args.no_fast_path
 
     if args.live:
         config = load_config()
         pipeline, notes = build_pipeline(rules, features, config)
+        pipeline.use_fast_path = use_fast_path
         for note in notes:
             print(f"! {note}")
     else:
-        pipeline = Pipeline(rules, features, router=Router([MockClient(rules, features)], timeout=10))
+        pipeline = Pipeline(rules, features, router=Router([MockClient(rules, features)], timeout=10), use_fast_path=use_fast_path)
 
-    print(f"rules: {len(rules)} | clarify options: {len(features.options)} | provider: {'live' if args.live else 'mock'}")
+    provider = "live" if args.live else "mock"
+    layer = "keyword+ai" if use_fast_path else "ai only"
+    print(f"rules: {len(rules)} | clarify options: {len(features.options)} | provider: {provider} | path: {layer}")
 
     total_passed = total_cases = 0
     worst: list[str] = []
@@ -146,7 +167,10 @@ def main(argv: list[str] | None = None) -> int:
         if passed / count < pass_line:
             worst.append(f"{name} {passed}/{count} < {pass_line:.0%}")
 
-    checks = [zero_cost_check(rules, features), clarify_flow_check(pipeline)]
+    checks: list[bool] = []
+    if use_fast_path:
+        checks.append(zero_cost_check(rules, features))
+    checks.append(clarify_flow_check(pipeline))
 
     print("\n" + "-" * 64)
     print(f"cases: {total_passed}/{total_cases} ({total_passed / total_cases:.0%})")

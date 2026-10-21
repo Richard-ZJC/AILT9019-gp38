@@ -8,6 +8,7 @@ components itself. No rule -> UNCOVERED -> the caller refuses. Never guess.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
@@ -67,6 +68,15 @@ def _tokens(text: str) -> set[str]:
         if len(word) > 3 and word.endswith("s"):
             words.add(word[:-1])
     return words
+
+
+_SPLIT = re.compile(r"[/,;|]+")
+
+
+def _alts(value: str) -> list[str]:
+    """Split 'cup/bowl' or 'plastic, foam' into separate candidates."""
+    alternatives = [normalise(part) for part in _SPLIT.split(value or "")]
+    return [alt for alt in alternatives if alt] or [""]
 
 
 def _material_matches(rule: Rule, material: str) -> int:
@@ -149,16 +159,21 @@ class Adjudicator:
             return Verdict(part=part, material=material, status="UNCOVERED")
 
         tokens = _tokens(f"{part} {material} {query_text}")
+        part_alts = _alts(part)
+        material_alts = _alts(material)
 
         best_rule: Rule | None = None
         best_score = -1
+        best_part = part
+        best_material = material
         for rule in self.rules:
             if rule.is_refusal:
                 continue
+            matched_part = next((alt for alt in part_alts if alt and alt in rule.parts), "")
+            material_score = max((_material_matches(rule, alt) for alt in material_alts), default=0)
             score = 0
-            if part and part in rule.parts:
+            if matched_part:
                 score += 4
-            material_score = _material_matches(rule, material)
             if material_score == 2:
                 score += 3
             elif material_score == 1:
@@ -166,12 +181,14 @@ class Adjudicator:
             score += _keyword_score(rule, tokens)
             if score > best_score:
                 best_rule, best_score = rule, score
+                best_part = matched_part or part
+                best_material = material
 
         if best_rule is None or best_score < 4:
             return Verdict(part=part, material=material, status="UNCOVERED")
 
-        matched_by = "part" if best_rule.parts and part in best_rule.parts else "keyword"
-        return self._verdict_from(best_rule, part, material, matched_by)
+        matched_by = "part" if best_part else "keyword"
+        return self._verdict_from(best_rule, best_part or part, best_material, matched_by)
 
     def resolve_all(
         self,

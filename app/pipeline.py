@@ -30,6 +30,7 @@ class Pipeline:
         memory: Memory | None = None,
         min_confidence: float = MIN_CONFIDENCE,
         debug: bool = False,
+        use_fast_path: bool = True,
     ) -> None:
         self.rules = list(rules)
         self.features = features
@@ -40,6 +41,9 @@ class Pipeline:
         self.memory = memory or Memory()
         self.min_confidence = min_confidence
         self.debug = debug
+        # Test switch: False forces every query through the AI path, so the model
+        # can be evaluated on items the keyword layer would otherwise answer.
+        self.use_fast_path = use_fast_path
 
     # ------------------------------------------------------------ entry points
 
@@ -58,7 +62,7 @@ class Pipeline:
             return self._refusal(session, refusal.payload("hazard", f"local hazard keyword: {hazard}"))
 
         # 0b. exact keyword match - zero API calls
-        hit = matcher.match(query, self.rules)
+        hit = matcher.match(query, self.rules) if self.use_fast_path else None
         if hit is not None:
             if hit.rule.is_refusal:
                 return self._refusal(session, refusal.payload("out_of_scope", f"keyword: {hit.rule.id}"))

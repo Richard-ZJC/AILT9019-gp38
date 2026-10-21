@@ -21,12 +21,15 @@ class AnthropicClient:
         base_url: str = "https://api.anthropic.com",
         timeout: float = 10.0,
         max_tokens: int = 1024,
+        extra_body: dict[str, Any] | None = None,
     ) -> None:
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_tokens = max_tokens
+        # e.g. {"thinking": {"type": "disabled"}} on a Qwen-compatible gateway.
+        self.extra_body = dict(extra_body or {})
 
     # ------------------------------------------------------------ payload
 
@@ -65,6 +68,7 @@ class AnthropicClient:
             payload["system"] = "\n\n".join(system_parts)
         if stream:
             payload["stream"] = True
+        payload.update(self.extra_body)
         return payload
 
     def _headers(self) -> dict[str, str]:

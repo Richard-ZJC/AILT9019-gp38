@@ -20,11 +20,15 @@ class OpenAIClient:
         model: str = "gpt-4o-mini",
         base_url: str = "https://api.openai.com/v1",
         timeout: float = 10.0,
+        extra_body: dict[str, Any] | None = None,
     ) -> None:
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        # Provider-specific switches that must not be sent to a vanilla endpoint,
+        # e.g. {"enable_thinking": False} for a Qwen-compatible gateway.
+        self.extra_body = dict(extra_body or {})
 
     # ------------------------------------------------------------ payload
 
@@ -48,6 +52,7 @@ class OpenAIClient:
             payload["stream"] = True
         else:
             payload["response_format"] = {"type": "json_object"}
+        payload.update(self.extra_body)
         return payload
 
     def _headers(self) -> dict[str, str]:

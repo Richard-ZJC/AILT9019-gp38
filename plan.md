@@ -26,7 +26,7 @@
 | 语言 | **Python ≥ 3.10** | macOS 自带；Windows 官网一键安装；无编译 |
 | 第三方依赖 | **零依赖**（仅标准库 `http.server` / `urllib` / `threading` / `queue` / `difflib`） | 换电脑不用 `pip install`，克隆即跑 |
 | 前端 | 单文件 HTML + 原生 JS | 浏览器直接打开，无 Node、无构建链 |
-| AI 模型 | 学校提供的 key，双通道：**OpenAI（gpt-4o-mini）优先，首 token 10s 超时切 Anthropic**，均失败 → `SERVICE_UNAVAILABLE` | 仅做识别/解释/搜索，**不做规则来源** |
+| AI 模型 | 学校提供的 key（阿里云百炼网关），双通道：**OpenAI 兼容通道（qwen3.8-flash）优先，15s 硬超时切 Anthropic 兼容通道**，均失败 → `SERVICE_UNAVAILABLE`；两路都**关闭 thinking**（实测同一 prompt 12–67s → 2–5s） | 仅做识别/解释/搜索，**不做规则来源** |
 | AI 调用 | HTTP 直连 REST（`urllib`，支持非流式与 SSE 两种模式） | 核心用非流式，流式为选作 |
 | AI 响应 | **严格 JSON 模版 + schema 校验**（§4.4） | 输出不可控 = 不可测试 |
 | 输出语言 | **英文优先**（UI / 报告 / 分类 / 来源 / 拒答话术全英文），中文输入支持为 should-have | 目标用户为英文使用者 |
@@ -98,14 +98,14 @@ AILT9019-gp38/
 ### 4.3 ai_plugin/router.py（双通道路由）🟥
 
 ```
-请求 → OpenAI（首 token 超时 10s）
+请求 → OpenAI 兼容（15s 硬超时：非流式，覆盖整个生成，不是首 token）
         ├─ 成功 → 返回（原始 JSON 文本）
-        └─ 超时/报错 → Anthropic（首 token 超时 10s）
+        └─ 超时/报错 → Anthropic 兼容（同样 15s）
                         ├─ 成功 → 返回
                         └─ 超时/报错 → status=SERVICE_UNAVAILABLE
                                        文案："This request involves sensitive information and cannot be processed right now."
 ```
-- **超时只 failover，不重试**（最坏 20s，而非 40s）；仅「JSON 解析失败」重试 1 次（快失败）。
+- **超时只 failover，不重试**（最坏 30s，而非 60s）；仅「JSON 解析失败」重试 1 次（快失败）。
 - `providers` 顺序来自 `config.json`（默认 `["openai","anthropic"]`），**构造注入**，便于测试 mock 与将来加第三家。
 - client 统一签名：`complete(messages, image=None, stream=False) -> str | Iterator[str]`。
 - 每次响应记录 `raw_model`，便于评测分组统计。
@@ -219,7 +219,7 @@ AILT9019-gp38/
 | T2 | rules_loader.py（含 REFUSE 条目校验） | 🟥 | W6–8 | ✅ | 校验用例 | fail-fast：缺字段/空来源/未知 category 直接退出 |
 | T2a | session.py（session_id / 轮次 / 上下文 / 过期） | 🟥 | W6–8 | ✅ | 测试⑧ | 2 轮上限在服务端，30 分钟过期 |
 | T3 | matcher.py + match.py（唯一裁决口） | 🟥 | W6–8 | ✅ | 品牌组 + 0成本计数 | 0 成本命中 → API 调用计数 = 0 |
-| T4 | openai_client.py + anthropic_client.py（非流式） | 🟥 | W6–8 | ✅ | 测试① | 代码完成；**真 key 未实测**（见 T9） |
+| T4 | openai_client.py + anthropic_client.py（非流式） | 🟥 | W6–8 | ✅ | 测试① | 两头已用真实 key 实测（百炼网关） |
 | T4a | router.py（注入 providers / 10s 超时不重试 / failover） | 🟥 | W6–8 | ✅ | 测试②③⑤ | 线程硬超时，超时只 failover |
 | T4b | schema.py（模版 + options/source_hint 校验 + 降级） | 🟥 | W6–8 | ✅ | 测试①④⑥⑦ | 非法 hint→null；越界 option→固定清单 |
 | T4c | pipeline.py 编排（0成本→AI→裁决→输出） | 🟥 | W6–8 | ✅ | run_tests | 四态 + `mode` 字段标明路径 |
@@ -228,7 +228,7 @@ AILT9019-gp38/
 | T6 | refusal.py（本地 hazards + 未匹配 + 全挂） | 🟥 | W6–8 | ✅ | 不支持组 | 四类拒答话术集中一处 |
 | T7 | server.py + web/index.html（英文 UI，非流式） | 🟥 | W6–8 | ✅ | smoke_test | 9/9 冒烟通过；`/identify/stream` 501 |
 | T8 | README（英文：setup / key / samples / supported） | 🟥 | W6–8 | ✅ | — | 含 16 条规则来源表与日期口径 |
-| T9 | 正式评测（10+5+5）并修错 | 🟥 | W9–10 | 🔶 | run_tests | 离线（mock）20/20 全绿；**待真 key 跑 `--live`** |
+| T9 | 正式评测（10+5+5）并修错 | 🟥 | W9–10 | ✅ | run_tests | 生产路径 19/20、AI-only 19–20/20、mock 20/20 |
 | T10 | Demo + 文档定稿 | 🟥 | W11–12 | ⬜ | run_tests | 对齐 W12 验收 |
 | T11 | 🟦 图片上传 + 多模态识别 | 🟦 | should | ⬜ | 新增图例用例 | 接口已在 T4d 预留 |
 | T12 | 🟦 fuzzy.py difflib 模糊识别 | 🟦 | should | ⬜ | 相似词用例 | 未实现返回 None |
@@ -247,8 +247,13 @@ AILT9019-gp38/
 | mock provider | 无 | `--mock` 与 `providers:["mock"]` | 无 key 的电脑要能跑冒烟与 demo；它只替代模型，pipeline/schema/裁决全部照跑 |
 | 低置信阈值 | 未量化 | 组件最高置信度 < 0.5 → CLARIFY | 给「宁可反问」一条可执行判据 |
 | 部分命中 | 未规定 | 至少 1 个部件命中 → OK，其余部件标 `UNCOVERED` | 整包拒答会丢有效信息；未命中部件仍显示固定拒答话术 |
+| 超时口径 | 10s 首 token | **15s 整请求** | 核心走非流式，拿不到首 token 时刻；百炼 flash 实测 3–7s，10s 太紧 |
+| 模型 | gpt-4o-mini | **qwen3.8-flash**（百炼网关） | 课程发的 key 是百炼；可用模型清单里无 OpenAI 原生模型 |
+| thinking | 未考虑 | 两路都关闭（`enable_thinking:false` / `thinking:{type:disabled}`） | 同一 prompt：开 12–67s，关 2–5s；JSON 抽取不需要思维链 |
+| `extra_body` | 无 | 有 | 网关私有开关不能写进通用客户端，否则真 OpenAI/Anthropic 会 400 |
+| 测试开关 | 无 | `pipeline.use_fast_path` + `run_tests --no-fast-path` | 不关掉关键词层，品牌组永远走不到模型，等于没测 AI |
 
-**验证状态**：`run_tests.py` 20/20（mock）、`test_ai_plugin.py` 8/8、`smoke_test.py` 9/9；`live_ai_test.py` 因无学校 key **未执行**——T9 的真 key 实测仍待补。
+**验证状态**：`run_tests.py` mock 20/20 · `run_tests.py --live` 19/20 · `run_tests.py --live --no-fast-path` 19–20/20 · `test_ai_plugin.py` 8/8 · `smoke_test.py` 9/9。唯一不稳定用例是 `l03 "some snack wrapper"`：模型有时直接判 plastic packaging，有时反问——属真实判断题，非链路 bug。
 
 ## 9. 里程碑（对齐 proposal timeline）
 

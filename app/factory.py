@@ -41,6 +41,7 @@ def build_clients(
                     model=str(section.get("model") or "gpt-4o-mini"),
                     base_url=str(section.get("base_url") or "https://api.openai.com/v1"),
                     timeout=timeout,
+                    extra_body=section.get("extra_body") or {},
                 )
             )
         elif name == "anthropic":
@@ -53,6 +54,7 @@ def build_clients(
                     model=str(section.get("model") or "claude-3-5-haiku-latest"),
                     base_url=str(section.get("base_url") or "https://api.anthropic.com"),
                     timeout=timeout,
+                    extra_body=section.get("extra_body") or {},
                 )
             )
         else:

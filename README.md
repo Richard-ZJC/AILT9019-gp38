@@ -46,6 +46,37 @@ Environment variables win over the file: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, 
 
 Without any key the server still starts: the keyword layer keeps answering, everything else returns `SERVICE_UNAVAILABLE` (never a guess).
 
+### Bailian (course-provided key)
+
+The course key is an OpenAI-compatible/Alibaba Cloud Bailian gateway, not the public OpenAI API. Use `qwen3.8-flash` and two gateway-specific switches — they live in `extra_body` so the code stays provider-neutral:
+
+```json
+{
+  "providers": ["openai", "anthropic"],
+  "timeout_seconds": 15,
+  "openai": {
+    "api_key": "<group key>",
+    "model": "qwen3.8-flash",
+    "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    "extra_body": { "enable_thinking": false }
+  },
+  "anthropic": {
+    "api_key": "<group key>",
+    "model": "qwen3.8-flash",
+    "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic",
+    "extra_body": { "thinking": { "type": "disabled" } }
+  }
+}
+```
+
+Why those switches: with reasoning left on, one request took **12–67 s** for the same prompt; with thinking disabled it drops to **2–5 s**. This is a JSON-extraction task, so the chain of thought buys nothing and costs the failover budget.
+
+The key is shared by the group and stays in `config.json` (gitignored). Never commit it, and do not paste it into an issue or a screenshot.
+
+### Timeout
+
+`timeout_seconds` is a **hard deadline per provider**, and it covers the whole non-streaming generation rather than time-to-first-token. Measured on the Bailian flash model: 3–7 s typical, so 15 s leaves headroom; worst case is 2 × 15 s before `SERVICE_UNAVAILABLE`.
+
 ## Endpoints
 
 | Route | Body | Answer |
@@ -106,13 +137,17 @@ Notes:
 ## Verify
 
 ```bash
-python tests/run_tests.py       # 10 brand + 5 low-confidence + 5 unsupported, plus zero-cost and clarify-flow checks
-python tests/test_ai_plugin.py  # 8 routing / schema / degradation checks, fake providers
-python tests/smoke_test.py      # boots the server, hits every route
-python tests/live_ai_test.py    # real key + network, skipped when no key
+python tests/run_tests.py                     # 10 brand + 5 low-confidence + 5 unsupported, mock provider
+python tests/run_tests.py --live              # same cases against the real key
+python tests/run_tests.py --live --no-fast-path   # disables the keyword layer: every case goes through the model
+python tests/test_ai_plugin.py                # 8 routing / schema / degradation checks, fake providers
+python tests/smoke_test.py                    # boots the server, hits every route
+python tests/live_ai_test.py                  # one model call per query, prints the routing trace
 ```
 
 Pass line: every group ≥ 80 %, all plugin checks and all smoke checks green.
+
+Last measured (Bailian `qwen3.8-flash`, 2026-10-21): mock 20/20 · live with keyword layer 19/20 · live AI-only 19–20/20. The one unstable case is `l03 "some snack wrapper"`, where the model sometimes calls it plastic packaging instead of asking — a genuine judgement call, not a pipeline bug.
 
 ## Layout
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "group": "brand_items",
-    "description": "Well-known products whose packaging is covered by the rule set. Category and source must both be right.",
+    "description": "Well-known products whose packaging is covered by the rule set. Every listed category must appear with a source; extra components are allowed because a product can have several parts (cup + lid + sleeve).",
     "pass_line": 0.8
   },
   "cases": [
