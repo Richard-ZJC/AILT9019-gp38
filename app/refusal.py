@@ -38,6 +38,18 @@ def hazard_hit(text: str) -> str | None:
     return None
 
 
+NOT_PACKAGING_ITEM = (
+    "A {item} comes without any packaging, so there is nothing to recycle here. "
+    "If it actually came in a wrapper, bottle or cup, describe that packaging instead."
+)
+
+
+def not_packaging_item(item: str) -> dict[str, Any]:
+    """The user picked the unpackaged candidate from a disambiguation list."""
+    clean = " ".join(item.split())[:80] or "item"
+    return payload("not_packaging", f"unpacked choice: {clean}", message=NOT_PACKAGING_ITEM.format(item=clean))
+
+
 def payload(kind: str, reason: str, **extra: Any) -> dict[str, Any]:
     message = {
         "out_of_scope": OUT_OF_SCOPE,

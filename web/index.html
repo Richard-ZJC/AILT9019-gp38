@@ -321,8 +321,13 @@ function render(payload) {
       btn.addEventListener("click", () => {
         if (disambiguate) {
           // A product chip means "identify THIS product" - a full round-trip,
-          // not the packaging confirm panel.
-          identify(btn.dataset.choice);
+          // not the packaging confirm panel. The unpackaged candidate
+          // (hint "none") takes the deterministic no-packaging gate instead.
+          const choice = btn.dataset.choice;
+          const text = clarify.hints?.[choice] === "none"
+            ? "no packaging: " + choice.replace(/ \(no packaging\)$/i, "")
+            : choice;
+          identify(text);
           return;
         }
         selected = btn.dataset.choice;

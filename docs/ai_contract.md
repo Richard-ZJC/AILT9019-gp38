@@ -34,3 +34,4 @@ One envelope, five statuses. Any branch that returns something else is a bug.
 - A chip click re-identifies the product name (frontend calls `/identify`), it is not an `/answer`.
 - Loop guard: after one disambiguation round (`session.context.disambiguated`), a second `BRAND` degrades to the ordinary packaging clarify.
 - Search failure or `< 2` candidates degrades to the ordinary packaging clarify - never a guess.
+- **No packaging assumption**: the search prompt must include an unpackaged candidate (`packaging: "none"`, e.g. "Whole lemon (no packaging)") FIRST whenever the query plausibly names a bare item. Its chip sends the deterministic gate text `no packaging: <item>` -> `REFUSE`/`not_packaging` with a templated message (`refusal.not_packaging_item`), no model call. Hazards still win over it.

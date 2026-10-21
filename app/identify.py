@@ -134,16 +134,23 @@ CORRECTION = (
     "matching the schema exactly, with no markdown fences and no commentary."
 )
 
-DISAMBIG_PROMPT = """You help "Campus Recycling Helper" narrow down a brand-only query.
+DISAMBIG_PROMPT = """You help "Campus Recycling Helper" narrow down a short query (a brand, a product
+line, or a bare food/object word). Web search is ENABLED for this request - use
+it. Do NOT assume the item is packaged: the user may be holding the bare item.
 
-The user typed just a brand or product-line name. Web search is ENABLED for this
-request - use it. Pick 3-5 CONCRETE packaged products of that brand that are
-actually sold in Hong Kong, most iconic first. For each product give its dominant
-packaging form as a short lowercase phrase such as "pet bottle", "tetra pak carton",
-"aluminium can", "plastic cup", "paper cup".
+Candidates, most likely first (3-5 total):
+1. If the query plausibly names an item that is commonly sold or found WITHOUT
+   packaging (a whole fruit, vegetable, or similar), include it FIRST as
+   {"name": "<the item> (no packaging)", "packaging": "none"} - e.g. "lemon"
+   -> "Whole lemon (no packaging)". The user chooses this when they are not
+   talking about a packaged product at all.
+2. Then 2-4 CONCRETE packaged products matching the query that are actually
+   sold in Hong Kong, each with its dominant packaging form as a short
+   lowercase phrase such as "pet bottle", "tetra pak carton", "aluminium can".
+Never invent a product that does not exist.
 
 Reply with exactly one JSON object. No prose, no markdown fences:
-{"products": [{"name": "Vitasoy lemon tea 250ml", "packaging": "tetra pak carton"}]}
+{"products": [{"name": "Whole lemon (no packaging)", "packaging": "none"}]}
 """
 
 

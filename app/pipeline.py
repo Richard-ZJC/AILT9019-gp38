@@ -64,6 +64,13 @@ class Pipeline:
         if hazard:
             return self._refusal(session, refusal.payload("hazard", f"local hazard keyword: {hazard}"))
 
+        # 0a'. the user picked the unpackaged candidate from a disambiguation
+        # list - deterministic, no model call, and it beats everything below
+        # except hazards ('no packaging: syringe' must still refuse as hazard).
+        if query.strip().lower().startswith("no packaging:"):
+            item = query.strip()[len("no packaging:") :].strip() or "this item"
+            return self._refusal(session, refusal.not_packaging_item(item))
+
         # 0b. exact keyword match - zero API calls
         hit = matcher.match(query, self.rules) if self.use_fast_path else None
         # 0c. typo rescue - still zero API calls ('trea' -> 'tetra pak')

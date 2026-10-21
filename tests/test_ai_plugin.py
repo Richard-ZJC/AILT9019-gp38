@@ -346,6 +346,44 @@ def test_refuse_message_layers() -> None:
     check("15 pipeline: model message wins, fixed copy is the fallback", ok, f"{first['message']!r} / {second['message']!r}")
 
 
+def test_unpacked_candidate_flow() -> None:
+    main = FakeClient("openai", [BRAND_PAYLOAD])
+    search = FakeClient(
+        "openai",
+        [
+            json.dumps(
+                {
+                    "products": [
+                        {"name": "Whole lemon (no packaging)", "packaging": "none"},
+                        {"name": "Vita Lemon Tea 250ml", "packaging": "tetra pak carton"},
+                        {"name": "Vita Lemon Tea 500ml", "packaging": "pet bottle"},
+                    ]
+                }
+            )
+        ],
+    )
+    pipeline = Pipeline(
+        RULES,
+        FEATURES,
+        router=Router([main], timeout=5),
+        search_router=Router([search], timeout=5),
+    )
+    first = pipeline.identify("lemon")
+    clarify = first.get("clarify") or {}
+    unpacked_first = clarify.get("options", [None])[0] == "Whole lemon (no packaging)"
+    second = pipeline.identify("no packaging: Whole lemon", session_id=first["session_id"])
+    ok = (
+        first["status"] == "CLARIFY"
+        and clarify.get("kind") == "disambiguate"
+        and unpacked_first
+        and second["status"] == "REFUSE"
+        and second["reason"] == "unpacked choice: Whole lemon"
+        and "Whole lemon" in second["message"]
+        and main.calls == 1  # the no-packaging gate is deterministic, no model call
+    )
+    check("16 pipeline: unpackaged candidate -> deterministic not_packaging", ok, str(second.get("message", "")))
+
+
 def main() -> int:
     print("AI plugin tests (fake providers, no network)")
     test_schema_accepts_valid()
@@ -363,6 +401,7 @@ def main() -> int:
     test_refusal_reason_passthrough()
     test_refuse_not_packaging_copy()
     test_refuse_message_layers()
+    test_unpacked_candidate_flow()
 
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     total = len(RESULTS)
