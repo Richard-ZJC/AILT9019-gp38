@@ -16,22 +16,38 @@
     ]
   },
   "categories": [
-    "Recyclable - Paper",
-    "Recyclable - Tetra Pak",
-    "Recyclable - Plastic",
-    "Recyclable - Metal",
-    "Recyclable - Glass",
-    "Special Handling",
+    "Paper",
+    "Metal",
+    "Plastic Bottle",
+    "Other Plastic",
     "General Waste",
+    "re Kiosk only",
     "Refuse"
   ],
   "rules": [
     {
       "id": "noodle-cup-lid",
       "title": "Instant noodle container lid",
-      "keywords": ["noodle lid", "instant noodle lid", "noodle container lid", "cup noodle lid", "noodle seal", "foil lid of noodle cup"],
-      "parts": ["lid", "seal", "cover"],
-      "materials": ["foil", "aluminium", "aluminum", "paper", "film"],
+      "keywords": [
+        "noodle lid",
+        "instant noodle lid",
+        "noodle container lid",
+        "cup noodle lid",
+        "noodle seal",
+        "foil lid of noodle cup"
+      ],
+      "parts": [
+        "lid",
+        "seal",
+        "cover"
+      ],
+      "materials": [
+        "foil",
+        "aluminium",
+        "aluminum",
+        "paper",
+        "film"
+      ],
       "category": "General Waste",
       "action": "RECYCLE",
       "instruction": "The lid of an instant noodle container is not accepted at the re Kiosk. Tear it off and put it in a general waste bin; only the cup or bowl goes into the plastic slot.",
@@ -39,89 +55,192 @@
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Instant noodle container: Lid - not accepted)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "general"
     },
     {
       "id": "noodle-cup-bowl",
       "title": "Instant noodle cup or bowl",
-      "keywords": ["instant noodle", "cup noodle", "noodle cup", "nissin cup", "noodle bowl", "ramen cup", "noodle container"],
-      "parts": ["cup", "bowl", "container", "pot"],
-      "materials": ["plastic", "ps", "polystyrene", "foam", "paper"],
-      "category": "Recyclable - Plastic",
+      "keywords": [
+        "instant noodle",
+        "cup noodle",
+        "noodle cup",
+        "nissin cup",
+        "noodle bowl",
+        "ramen cup",
+        "noodle container"
+      ],
+      "parts": [
+        "cup",
+        "bowl",
+        "container",
+        "pot"
+      ],
+      "materials": [
+        "plastic",
+        "ps",
+        "polystyrene",
+        "foam",
+        "paper"
+      ],
+      "category": "Other Plastic",
       "action": "RECYCLE",
       "instruction": "Empty and rinse the cup or bowl, remove the lid and any food residue, then place it in the plastic slot at the re Kiosk.",
       "source": {
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Instant noodle container: the cup/bowl - plastic)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "beverage-carton",
       "title": "Beverage carton / Tetra Pak",
-      "keywords": ["tetra pak", "tetrapak", "beverage carton", "drink carton", "juice box", "milk carton", "soy milk", "vitasoy", "coffee cup", "paper cup", "takeaway cup", "take-away cup", "takeaway coffee cup"],
-      "parts": ["carton", "cup", "box", "pack"],
-      "materials": ["tetra pak", "tetrapak", "liquid paperboard", "paperboard", "paper", "cardboard"],
-      "category": "Recyclable - Tetra Pak",
+      "keywords": [
+        "tetra pak",
+        "tetrapak",
+        "beverage carton",
+        "drink carton",
+        "juice box",
+        "milk carton",
+        "soy milk",
+        "vitasoy",
+        "coffee cup",
+        "paper cup",
+        "takeaway cup",
+        "take-away cup",
+        "takeaway coffee cup"
+      ],
+      "parts": [
+        "carton",
+        "cup",
+        "box",
+        "pack"
+      ],
+      "materials": [
+        "tetra pak",
+        "tetrapak",
+        "liquid paperboard",
+        "paperboard",
+        "paper",
+        "cardboard"
+      ],
+      "category": "re Kiosk only",
       "action": "RECYCLE",
-      "instruction": "Empty and rinse the carton, flatten it, then place it in the Tetra Pak slot at the re Kiosk. A clean take-away coffee cup belongs here too - its plastic lid and paper sleeve are separated.",
+      "instruction": "Empty and rinse the carton, flatten it, then place it in the Tetra Pak slot at the re Kiosk. A clean take-away coffee cup belongs here too - its plastic lid and paper sleeve are separated. Smart Recycling Bins do not accept this; take it to the re Kiosk (Run Run Shaw Podium, 24h).",
       "source": {
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Take-away coffee cup: Clean cup - tetra pak)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "re-kiosk"
     },
     {
       "id": "plastic-cup-lid",
       "title": "Plastic cup lid or bottle cap",
-      "keywords": ["cup lid", "coffee cup lid", "drink lid", "plastic lid", "bottle cap", "bottle lid", "cap"],
-      "parts": ["lid", "cap", "cover"],
-      "materials": ["plastic", "pp", "ps", "pet", "hdpe"],
-      "category": "Recyclable - Plastic",
+      "keywords": [
+        "cup lid",
+        "coffee cup lid",
+        "drink lid",
+        "plastic lid",
+        "bottle cap",
+        "bottle lid",
+        "cap"
+      ],
+      "parts": [
+        "lid",
+        "cap",
+        "cover"
+      ],
+      "materials": [
+        "plastic",
+        "pp",
+        "ps",
+        "pet",
+        "hdpe"
+      ],
+      "category": "Other Plastic",
       "action": "RECYCLE",
       "instruction": "A clean plastic lid or cap goes into the plastic slot at the re Kiosk. Rinse off drink residue first and keep it separate from the cup.",
       "source": {
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Take-away coffee cup: Clean lid - plastic)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "paper-cup-sleeve",
       "title": "Paper cup sleeve",
-      "keywords": ["cup sleeve", "coffee sleeve", "paper sleeve", "cardboard sleeve"],
-      "parts": ["sleeve"],
-      "materials": ["paper", "cardboard"],
-      "category": "Recyclable - Paper",
+      "keywords": [
+        "cup sleeve",
+        "coffee sleeve",
+        "paper sleeve",
+        "cardboard sleeve"
+      ],
+      "parts": [
+        "sleeve"
+      ],
+      "materials": [
+        "paper",
+        "cardboard"
+      ],
+      "category": "Paper",
       "action": "RECYCLE",
       "instruction": "The paper sleeve from a take-away cup goes into the paper slot at the re Kiosk.",
       "source": {
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Take-away coffee cup: Cup Sleeve - paper)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "pizza-box",
       "title": "Clean pizza box",
-      "keywords": ["pizza box", "pizza carton"],
-      "parts": ["box", "carton"],
-      "materials": ["cardboard", "paper"],
-      "category": "Recyclable - Paper",
+      "keywords": [
+        "pizza box",
+        "pizza carton"
+      ],
+      "parts": [
+        "box",
+        "carton"
+      ],
+      "materials": [
+        "cardboard",
+        "paper"
+      ],
+      "category": "Paper",
       "action": "RECYCLE",
       "instruction": "Only a clean pizza box is accepted. Remove food residue and grease-stained sections, flatten the box and place it in the paper slot.",
       "source": {
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Paper: Clean pizza box - paper)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "baking-paper",
       "title": "Baking paper / parchment",
-      "keywords": ["baking paper", "parchment paper", "baking sheet", "greaseproof paper", "wax paper"],
-      "parts": ["paper", "sheet", "liner"],
-      "materials": ["parchment", "silicone", "wax", "coated paper"],
+      "keywords": [
+        "baking paper",
+        "parchment paper",
+        "baking sheet",
+        "greaseproof paper",
+        "wax paper"
+      ],
+      "parts": [
+        "paper",
+        "sheet",
+        "liner"
+      ],
+      "materials": [
+        "parchment",
+        "silicone",
+        "wax",
+        "coated paper"
+      ],
       "category": "General Waste",
       "action": "RECYCLE",
       "instruction": "Baking paper is not accepted at the re Kiosk because of its silicone or wax coating. Put it in a general waste bin.",
@@ -129,132 +248,322 @@
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Baking paper - not accepted)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "general"
     },
     {
       "id": "glass-bottle",
       "title": "Glass bottle or jar",
-      "keywords": ["glass bottle", "wine bottle", "beer bottle", "glass jar", "sauce jar", "jam jar", "perrier", "glass container"],
-      "parts": ["bottle", "jar"],
-      "materials": ["glass"],
-      "category": "Recyclable - Glass",
+      "keywords": [
+        "glass bottle",
+        "wine bottle",
+        "beer bottle",
+        "glass jar",
+        "sauce jar",
+        "jam jar",
+        "perrier",
+        "glass container"
+      ],
+      "parts": [
+        "bottle",
+        "jar"
+      ],
+      "materials": [
+        "glass"
+      ],
+      "category": "re Kiosk only",
       "action": "RECYCLE",
-      "instruction": "Rinse the glass bottle or jar and place it in the glass slot at the re Kiosk. On campus, glass is accepted at the re Kiosk and at the Smart Recycling Bins at Central Podium Levels and Pine Court only.",
+      "instruction": "Rinse the glass bottle or jar and place it in the glass slot at the re Kiosk. On campus, glass is accepted at the re Kiosk and at the Smart Recycling Bins at Central Podium Levels and Pine Court only. Smart Recycling Bins do not accept this; take it to the re Kiosk (Run Run Shaw Podium, 24h).",
       "source": {
         "name": "HKU re Campaign - re Kiosk accepted recyclables (Glass Bottle) / Smart Recycling Bins coverage",
         "url": "https://www.wastereduction.hku.hk/re-kiosk"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "re-kiosk"
     },
     {
       "id": "metal-can",
       "title": "Aluminium or tin can",
-      "keywords": ["aluminium can", "aluminum can", "tin can", "drinks can", "drink can", "soda can", "soft drink can", "coke can", "beer can", "food tin", "metal can", "metal box", "tin box"],
-      "parts": ["can", "tin", "box"],
-      "materials": ["aluminium", "aluminum", "steel", "tin", "metal"],
-      "category": "Recyclable - Metal",
+      "keywords": [
+        "aluminium can",
+        "aluminum can",
+        "tin can",
+        "drinks can",
+        "drink can",
+        "soda can",
+        "soft drink can",
+        "coke can",
+        "beer can",
+        "food tin",
+        "metal can",
+        "metal box",
+        "tin box"
+      ],
+      "parts": [
+        "can",
+        "tin",
+        "box"
+      ],
+      "materials": [
+        "aluminium",
+        "aluminum",
+        "steel",
+        "tin",
+        "metal"
+      ],
+      "category": "Metal",
       "action": "RECYCLE",
       "instruction": "Empty and rinse the can, do not crush it flat if you can avoid it, then place it in the metal slot at the re Kiosk or a Smart Recycling Bin.",
       "source": {
         "name": "HKU re Campaign - re Kiosk accepted recyclables (Metal)",
         "url": "https://www.wastereduction.hku.hk/re-kiosk"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "plastic-bottle",
       "title": "Plastic (PET) bottle",
-      "keywords": ["plastic bottle", "pet bottle", "water bottle", "soft drink bottle", "juice bottle", "sports drink bottle", "bonaqua", "hand wash bottle", "shampoo bottle"],
-      "parts": ["bottle"],
-      "materials": ["plastic", "pet", "hdpe", "pp", "pe"],
-      "category": "Recyclable - Plastic",
+      "keywords": [
+        "plastic bottle",
+        "pet bottle",
+        "water bottle",
+        "soft drink bottle",
+        "juice bottle",
+        "sports drink bottle",
+        "bonaqua",
+        "hand wash bottle",
+        "shampoo bottle"
+      ],
+      "parts": [
+        "bottle"
+      ],
+      "materials": [
+        "plastic",
+        "pet",
+        "hdpe",
+        "pp",
+        "pe"
+      ],
+      "category": "Plastic Bottle",
       "action": "RECYCLE",
       "instruction": "Empty and rinse the bottle, remove the cap and put both into the plastic slot at the re Kiosk or a Smart Recycling Bin.",
       "source": {
         "name": "HKU re Campaign - re Kiosk accepted recyclables (Plastic) / Smart Recycling Bins (Plastic bottle)",
         "url": "https://www.wastereduction.hku.hk/re-kiosk"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "styrofoam-box",
       "title": "Styrofoam box or tray (cleaned)",
-      "keywords": ["styrofoam", "foam box", "foam tray", "polystyrene box", "fish box", "takeaway box", "food container"],
-      "parts": ["box", "tray", "container"],
-      "materials": ["styrofoam", "polystyrene", "eps", "foam", "plastic"],
-      "category": "Recyclable - Plastic",
+      "keywords": [
+        "styrofoam",
+        "foam box",
+        "foam tray",
+        "polystyrene box",
+        "fish box",
+        "takeaway box",
+        "food container"
+      ],
+      "parts": [
+        "box",
+        "tray",
+        "container"
+      ],
+      "materials": [
+        "styrofoam",
+        "polystyrene",
+        "eps",
+        "foam",
+        "plastic"
+      ],
+      "category": "Other Plastic",
       "action": "RECYCLE",
       "instruction": "Styrofoam is accepted only when it is cleaned with no food residue. Rinse and dry it, then place it in the plastic slot at the re Kiosk.",
       "source": {
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Styrofoam - cleaned, plastic)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "contact-lens-tray",
       "title": "Contact lens packaging tray",
-      "keywords": ["contact lens", "contact lens tray", "lens blister", "blister pack"],
-      "parts": ["tray", "blister", "packaging"],
-      "materials": ["plastic", "pp"],
-      "category": "Recyclable - Plastic",
+      "keywords": [
+        "contact lens",
+        "contact lens tray",
+        "lens blister",
+        "blister pack"
+      ],
+      "parts": [
+        "tray",
+        "blister",
+        "packaging"
+      ],
+      "materials": [
+        "plastic",
+        "pp"
+      ],
+      "category": "Other Plastic",
       "action": "RECYCLE",
       "instruction": "The plastic tray of contact lens packaging goes into the plastic slot at the re Kiosk. The foil lid is not accepted - peel it off and bin it as general waste.",
       "source": {
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Contact lens packaging: Tray - plastic, Foil lid - not accepted)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "paper-general",
       "title": "Paper, newspaper, cardboard box",
-      "keywords": ["newspaper", "office paper", "printing paper", "cardboard box", "carton box", "paper box", "paper bag", "paper packaging", "envelope", "magazine", "textbook", "notes", "pizza hut"],
-      "parts": ["paper", "box", "bag", "newspaper", "book", "sheet"],
-      "materials": ["paper", "cardboard", "newsprint"],
-      "category": "Recyclable - Paper",
+      "keywords": [
+        "newspaper",
+        "office paper",
+        "printing paper",
+        "cardboard box",
+        "carton box",
+        "paper box",
+        "paper bag",
+        "paper packaging",
+        "envelope",
+        "magazine",
+        "textbook",
+        "notes",
+        "pizza hut"
+      ],
+      "parts": [
+        "paper",
+        "box",
+        "bag",
+        "newspaper",
+        "book",
+        "sheet"
+      ],
+      "materials": [
+        "paper",
+        "cardboard",
+        "newsprint"
+      ],
+      "category": "Paper",
       "action": "RECYCLE",
       "instruction": "Keep paper clean and dry, flatten boxes, then place it in the paper slot at the re Kiosk or a Smart Recycling Bin.",
       "source": {
         "name": "HKU re Campaign - re Kiosk accepted recyclables (Paper)",
         "url": "https://www.wastereduction.hku.hk/re-kiosk"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "plastic-packaging",
       "title": "Other plastic packaging",
-      "keywords": ["plastic packaging", "plastic wrapper", "plastic film", "shrink wrap", "plastic tray", "plastic container", "plastic cup", "plastic bag", "plastic pouch"],
-      "parts": ["packaging", "wrapper", "film", "tray", "container", "cup", "bag", "pouch"],
-      "materials": ["plastic", "pp", "pet", "pe", "ps"],
-      "category": "Recyclable - Plastic",
+      "keywords": [
+        "plastic packaging",
+        "plastic wrapper",
+        "plastic film",
+        "shrink wrap",
+        "plastic tray",
+        "plastic container",
+        "plastic cup",
+        "plastic bag",
+        "plastic pouch"
+      ],
+      "parts": [
+        "packaging",
+        "wrapper",
+        "film",
+        "tray",
+        "container",
+        "cup",
+        "bag",
+        "pouch"
+      ],
+      "materials": [
+        "plastic",
+        "pp",
+        "pet",
+        "pe",
+        "ps"
+      ],
+      "category": "Other Plastic",
       "action": "RECYCLE",
       "instruction": "Clean plastic packaging is accepted at the re Kiosk. Rinse off food and drink residue and dry it before dropping it into the plastic slot.",
       "source": {
         "name": "HKU re Campaign - Recycling 101 Photo Guide (Plastic packaging - plastic)",
         "url": "https://wastereduction.hku.hk/photo-guide"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "smart-bin"
     },
     {
       "id": "rechargeable-battery",
       "title": "Rechargeable battery / power bank",
-      "keywords": ["rechargeable battery", "lithium battery", "li-ion", "power bank", "powerbank", "nimh", "battery pack", "eneloop"],
-      "parts": ["battery", "power bank", "cell"],
-      "materials": ["lithium", "li-ion", "nimh", "metal"],
-      "category": "Special Handling",
+      "keywords": [
+        "rechargeable battery",
+        "lithium battery",
+        "li-ion",
+        "power bank",
+        "powerbank",
+        "nimh",
+        "battery pack",
+        "eneloop"
+      ],
+      "parts": [
+        "battery",
+        "power bank",
+        "cell"
+      ],
+      "materials": [
+        "lithium",
+        "li-ion",
+        "nimh",
+        "metal"
+      ],
+      "category": "re Kiosk only",
       "action": "RECYCLE",
-      "instruction": "Rechargeable batteries are collected separately at the re Kiosk. Tape the terminals and hand them in at the battery slot - never put them in a general waste bin.",
+      "instruction": "Rechargeable batteries are collected separately at the re Kiosk. Tape the terminals and hand them in at the battery slot - never put them in a general waste bin. Smart Recycling Bins do not accept this; take it to the re Kiosk (Run Run Shaw Podium, 24h).",
       "source": {
         "name": "HKU re Campaign - re Kiosk accepted recyclables (Rechargeable Battery)",
         "url": "https://www.wastereduction.hku.hk/re-kiosk"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "re-kiosk"
     },
     {
       "id": "out-of-scope",
       "title": "Out-of-scope item (hazardous or bulky)",
-      "keywords": ["chemical", "solvent", "paint", "pesticide", "aerosol", "syringe", "needle", "medical waste", "broken glass", "ceramic", "mirror", "light bulb", "fluorescent tube", "e-waste", "electronic waste", "laptop", "mobile phone", "keyboard", "furniture", "mattress", "sofa", "chair", "tyre", "tire", "construction waste", "clinical waste"],
+      "keywords": [
+        "chemical",
+        "solvent",
+        "paint",
+        "pesticide",
+        "aerosol",
+        "syringe",
+        "needle",
+        "medical waste",
+        "broken glass",
+        "ceramic",
+        "mirror",
+        "light bulb",
+        "fluorescent tube",
+        "e-waste",
+        "electronic waste",
+        "laptop",
+        "mobile phone",
+        "keyboard",
+        "furniture",
+        "mattress",
+        "sofa",
+        "chair",
+        "tyre",
+        "tire",
+        "construction waste",
+        "clinical waste"
+      ],
       "parts": [],
       "materials": [],
       "category": "Refuse",
@@ -264,7 +573,8 @@
         "name": "HKU re Campaign - Recycling 101 scope (paper / tetra pak / metal / glass / plastic / rechargeable battery only)",
         "url": "https://wastereduction.hku.hk/recycling-101"
       },
-      "effective_date": "2026-10-21"
+      "effective_date": "2026-10-21",
+      "bin": "refuse"
     }
   ]
 }

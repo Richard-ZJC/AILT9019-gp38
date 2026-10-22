@@ -35,6 +35,7 @@ class Rule:
     source_name: str
     source_url: str
     effective_date: str
+    bin: str = "smart-bin"
 
     @property
     def source(self) -> dict[str, str]:
@@ -181,6 +182,7 @@ def load_rules(path: str | Path | None = None) -> list[Rule]:
                 source_name=source_name.strip(),
                 source_url=source_url.strip(),
                 effective_date=_check_date(entry.get("effective_date"), rule_id),
+                bin=str(entry.get("bin") or "smart-bin"),
             )
         )
 

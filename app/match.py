@@ -31,6 +31,7 @@ class Verdict:
     source: dict[str, str] | None = None
     effective_date: str | None = None
     matched_by: str | None = None
+    bin: str | None = None
 
     @property
     def covered(self) -> bool:
@@ -43,6 +44,7 @@ class Verdict:
                 "material": self.material,
                 "status": "UNCOVERED",
                 "category": None,
+                "bin": None,
                 "rule_id": None,
                 "message": UNCOVERED_COPY,
             }
@@ -51,6 +53,7 @@ class Verdict:
             "material": self.material,
             "status": "MATCHED",
             "category": self.category,
+            "bin": self.bin,
             "action": self.action,
             "rule_id": self.rule_id,
             "rule_title": self.rule_title,
@@ -127,6 +130,7 @@ class Adjudicator:
             source=rule.source,
             effective_date=rule.effective_date,
             matched_by=matched_by,
+            bin=rule.bin,
         )
 
     def from_rule(self, rule: Rule, part: str = "", material: str = "", matched_by: str = "keyword") -> Verdict:

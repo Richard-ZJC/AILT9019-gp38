@@ -160,7 +160,7 @@ def clarify_flow_check(pipeline: Pipeline) -> bool:
         print(f"clarify flow: first turn was {first['status']}  [FAIL]")
         return False
     second = pipeline.answer(first["session_id"], "bottle")
-    ok = second["status"] == "OK" and second["mode"] == "clarify_answer" and second["components"][0]["category"] == "Recyclable - Plastic"
+    ok = second["status"] == "OK" and second["mode"] == "clarify_answer" and second["components"][0]["category"] == "Plastic Bottle"
     print(
         "clarify flow\n' a bottle' -> CLARIFY -> choose 'bottle' -> "
         f"{second['status']} / {categories_of(second)}  [{'PASS' if ok else 'FAIL'}]"
