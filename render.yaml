@@ -1,0 +1,28 @@
+# Render deployment config — one-click after connecting this GitHub repo.
+# Secrets are NOT stored here (sync: false); enter them in the Render dashboard.
+services:
+  - type: web
+    name: ailt9019-gp38
+    runtime: python
+    plan: free
+    region: singapore          # lowest latency for HK; change to oregon if preferred
+    branch: main
+    startCommand: "python server.py --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false
+      - key: OPENAI_EXTRA_BODY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_BASE_URL
+        sync: false
+      - key: ANTHROPIC_MODEL
+        sync: false
+      - key: ANTHROPIC_EXTRA_BODY
+        sync: false

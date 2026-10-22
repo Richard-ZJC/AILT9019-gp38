@@ -79,6 +79,24 @@ The key is shared by the group and stays in `config.json` (gitignored). Never co
 
 `timeout_seconds` is a **hard deadline per provider**, and it covers the whole non-streaming generation rather than time-to-first-token. Measured on the Bailian flash model: 3–7 s typical, so 15 s leaves headroom; worst case is 2 × 15 s before `SERVICE_UNAVAILABLE`.
 
+## Deploy (hosted public URL)
+
+The server is standard-library only, so it deploys to any Python web host with no build step. A `Procfile` and `render.yaml` are included.
+
+### Render (recommended, free)
+
+1. Sign up at render.com → **New Web Service** → connect this GitHub repo (`Richard-ZJC/AILT9019-gp38`).
+2. Render auto-detects the `Procfile`; `render.yaml` pre-sets the start command and `/health` check.
+3. **Environment** tab — add these (read by `app/config.py`, never committed):
+   - `OPENAI_API_KEY` — your Bailian / OpenAI key
+   - `OPENAI_BASE_URL` — Bailian compatible endpoint (`https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1`)
+   - `OPENAI_MODEL` — `qwen3.8-flash`
+   - `OPENAI_EXTRA_BODY` — `{"enable_thinking": false}` (keeps latency at 2–5 s; without it Bailian thinks and takes 12–67 s)
+   - (optional) `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL` / `ANTHROPIC_EXTRA_BODY` for the fallback channel
+4. Deploy → you get a public `https://ailt9019-gp38.onrender.com`. Free plan sleeps after inactivity (~30–60 s cold start).
+
+> The URL is public — anyone with the link can call the AI endpoint and spend your key's quota. Share it only within the group, or ask for a shared-password gate to be added.
+
 ## Endpoints
 
 | Route | Body | Answer |

@@ -50,14 +50,23 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         "OPENAI_API_KEY": ("openai", "api_key"),
         "OPENAI_BASE_URL": ("openai", "base_url"),
         "OPENAI_MODEL": ("openai", "model"),
+        "OPENAI_EXTRA_BODY": ("openai", "extra_body"),
         "ANTHROPIC_API_KEY": ("anthropic", "api_key"),
         "ANTHROPIC_BASE_URL": ("anthropic", "base_url"),
         "ANTHROPIC_MODEL": ("anthropic", "model"),
+        "ANTHROPIC_EXTRA_BODY": ("anthropic", "extra_body"),
     }
+    json_keys = {("openai", "extra_body"), ("anthropic", "extra_body")}
     for env_name, (section, key) in env_map.items():
         value = os.environ.get(env_name)
-        if value:
-            config.setdefault(section, {})[key] = value
+        if not value:
+            continue
+        if (section, key) in json_keys:
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                continue
+        config.setdefault(section, {})[key] = value
 
     config["_source"] = str(file_path)
     return config
