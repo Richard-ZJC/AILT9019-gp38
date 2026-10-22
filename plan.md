@@ -235,6 +235,7 @@ AILT9019-gp38/
 | T13 | 🟦 SSE 流式 + 异步双路（threading） | 🟦 | should | ⬜ | 流式/进度事件 | `/identify/stream` 501→200 |
 | T14 | 🟦 memory.py 本地记忆落盘 | 🟦 | should | 🔶 | 落盘/关闭开关 | 已实现（`save_memory` 开关 + data/memory/）；**与 proposal「不存储查询」红线冲突，见 §8.2-P5** |
 | T15 | 🟦 AI 搜索 + AI 动态反问文案 | 🟦 | should | ✅（2026-10-22） | 搜索标记用例 | **品牌反问已上线**：裸品牌名 → 模型 status `BRAND` → `Identifier.disambiguate` 走搜索路由（百炼 `enable_search:true` 实测生效）→ 商品候选列表（kind=disambiguate）→ 用户点选 → 重新识别出建议；搜索失败/候选<2 降级为普通包装反问；防回环护栏（一轮后再 BRAND → 包装反问）；契约见 docs/ai_contract.md |
+| T15a | 🟦 对抗性审查与修复 | 🟦 | should | ✅（2026-10-22） | test_ai_plugin 22–24 + 8b/8c 重写 | **5 处不合理已修**：①`_is_bare_noun` 加近失容器词匹配（bottel→包装问句，不搜产品）；②`match()` 平局仅当跨 category 才返回 None（plastic bottle+paper cup→AI 列举，pizza box 同 category 照常命中）；③`no packaging:` 门查包装词表（battery 不再误拒，匹配电池规则）；④搜索空→best_effort（不再合成假无包装选项）；⑤`_commit` 删盲猜兜底（不再瞎猜 features 首位 carton）。`refusal.TOO_MANY_QUESTIONS` 已删，第三轮 commit 改 best_guess/ best_effort。验证：test_ai_plugin 27/27、run_tests 21/22+checks 2/2、真实 8010 对抗性 8 用例全过 |
 
 ### 8.1 本轮实现记录（与计划的偏差，需团队确认）
 
@@ -257,7 +258,7 @@ AILT9019-gp38/
 | 模糊层 | 🟦 difflib 选作 | **词重叠 + Damerau-Levenshtein typo 两阶段，均已实现**，统一判据「单词→唯一规则」 | 用户需求驱动（"Trea" 案件）；歧义词（bottle/lid 等跨多规则）不猜，交 AI 重判 |
 | 反问出口 | 仅固定选项 | 增加**自输入**：键盘图标弹出输入框，提交走 /identify 同一 session | 用户需求（微信输入风格）；2 轮上限不受影响 |
 
-**验证状态（2026-10-22）**：`run_tests.py` mock **21/22（95%）** · 检查 3/3 · `test_ai_plugin.py` **9/9** · `smoke_test.py` 9/9 · `--live` 曾 19/20（改动后待复跑）。唯一 mock 未过项：`u07`（自然句子 mock 认不出，真模型 REFUSE 已实测）。
+**验证状态（2026-10-22，对抗性审查后）**：`run_tests.py` mock **21/22（95%）** · 检查 **2/2** · `test_ai_plugin.py` **27/27** · `smoke_test.py` 9/9 · 真实 8010 对抗性 8 用例全过（bottel/平局多组件/battery门/搜索空/三轮commit/lemon/banana/a bottle）。唯一 mock 未过项：`u07`（自然句子 mock 认不出，真模型 REFUSE 已实测）。
 
 ## 8.2 Proposal 对齐检查（2026-10-22，对照 Project Proposal revise(1)）
 

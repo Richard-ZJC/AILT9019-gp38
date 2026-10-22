@@ -209,21 +209,39 @@ def match(text: str, rules: Sequence[Rule]) -> Match | None:
     """Return the single best exact match, or None.
 
     Scoring: a keyword with more words wins (more specific), so
-    "plastic bottle" beats "bottle" in the same sentence.
+    "plastic bottle" beats "bottle" in the same sentence. A TIE is only
+    ambiguous when the tied rules point at different categories: "plastic
+    bottle and paper cup" (Plastic vs Paper) must not collapse to one. A
+    tie inside one category ("pizza box" hits both pizza-box and
+    paper-general, both Paper) is not a real ambiguity - pick the first.
     """
     haystack = normalise(text)
     if not haystack:
         return None
 
-    best: Match | None = None
+    hits: list[Match] = []
     for rule in rules:
+        best_keyword = ""
+        best_score = 0
         for keyword in rule.keywords:
-            if not keyword_hit(haystack, keyword):
-                continue
-            score = len(normalise(keyword).split())
-            if best is None or score > best.score:
-                best = Match(rule=rule, keyword=keyword, score=score)
-    return best
+            if keyword_hit(haystack, keyword):
+                score = len(normalise(keyword).split())
+                if score > best_score:
+                    best_keyword, best_score = keyword, score
+        if best_score:
+            hits.append(Match(rule=rule, keyword=best_keyword, score=best_score))
+    if not hits:
+        return None
+    hits.sort(key=lambda hit: hit.score, reverse=True)
+    top = hits[0].score
+    top_hits = [hit for hit in hits if hit.score == top]
+    if len(top_hits) == 1:
+        return top_hits[0]
+    # Tie: only refuse to pick when the tied rules disagree on category.
+    categories = {hit.rule.category for hit in top_hits}
+    if len(categories) == 1:
+        return top_hits[0]
+    return None
 
 
 def match_all(text: str, rules: Sequence[Rule]) -> list[Match]:

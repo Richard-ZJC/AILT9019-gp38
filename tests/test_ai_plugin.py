@@ -205,25 +205,32 @@ def test_third_round_commits_to_a_conclusion() -> None:
 
 
 def test_commit_survives_a_model_that_asks_again() -> None:
-    """Even if the model ignores the 'do not ask' instruction, we still decide."""
+    """The model ignored 'do not ask again'. We do not guess the first option -
+    that would name the wrong material. We give a labelled best-effort move.
+    """
     client = FakeClient("openai", [CLARIFY_PAYLOAD])
     pipeline = Pipeline(RULES, FEATURES, router=Router([client], timeout=5))
     first = pipeline.identify("the thing from the canteen")
     second = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
     third = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
-    ok = third["status"] == "OK" and third["mode"] == "best_guess"
+    message = third.get("message") or ""
+    ok = (
+        third["status"] == "REFUSE"
+        and "best_effort" in (third.get("reason") or "")
+        and "re Kiosk" in message
+        and "check it yourself" not in message
+    )
     check(
-        "8b session: a committing model that still says CLARIFY -> leading option answered",
+        "8b session: model asks again on the commit round -> best-effort, not a blind guess",
         ok,
-        f"{third['status']} mode={third.get('mode')}",
+        f"{third['status']} reason={third.get('reason')} msg={message[:60]}",
     )
 
 
 def test_commit_survives_a_dead_model() -> None:
-    """No model at the deciding moment: the leading option still answers.
-
-    A down model must not turn a two-question conversation into
-    "service unavailable" either - the user already told us enough.
+    """The model dies on the commit call. The answer is still not
+    service_unavailable - the user already gave us two rounds of context, and a
+    best-effort move beats a blank error.
     """
     # The two questions succeed; only the final commit call dies.
     client = FakeClient("openai", [CLARIFY_PAYLOAD, CLARIFY_PAYLOAD, CLARIFY_PAYLOAD, TimeoutError("down")])
@@ -231,11 +238,17 @@ def test_commit_survives_a_dead_model() -> None:
     first = pipeline.identify("the thing from the canteen")
     second = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
     third = pipeline.identify("the thing from the canteen", session_id=first["session_id"])
-    ok = third["status"] == "OK" and third["mode"] == "best_guess"
+    message = third.get("message") or ""
+    ok = (
+        third["status"] == "REFUSE"
+        and third.get("mode") != "service_unavailable"
+        and "best_effort" in (third.get("reason") or "")
+        and "re Kiosk" in message
+    )
     check(
-        "8c session: model dies while committing -> leading option still answered",
+        "8c session: model dies while committing -> best-effort, never service_unavailable",
         ok,
-        f"{third['status']} mode={third.get('mode')}",
+        f"{third['status']} mode={third.get('mode')} msg={message[:60]}",
     )
 
 
@@ -356,16 +369,19 @@ def test_brand_without_search_degrades() -> None:
         search_router=Router([search], timeout=5),
     )
     result = pipeline.identify("coca cola")
-    clarify = result.get("clarify") or {}
-    # A failed search must NOT drop back to "which packaging do you see?" -
-    # that question assumes a packaging the user may not have.
+    # A failed search must NOT synthesise a "(no packaging)" option - that
+    # would pretend coca cola might come loose, the same error the
+    # not_packaging rule exists to stop. It must also NOT drop back to
+    # "which packaging do you see?" - that question assumes a packaging the
+    # user may not have. The honest move is a best-effort card that names
+    # one concrete next step (re Kiosk / tell me the container word).
     ok = (
-        result["status"] == "CLARIFY"
-        and clarify.get("kind") == "disambiguate"
-        and clarify.get("options") == ["coca cola (no packaging)"]
+        result["status"] == "REFUSE"
+        and "best_effort" in (result.get("reason") or "")
+        and "re Kiosk" in (result.get("message") or "")
         and search.calls == 1
     )
-    check("12 pipeline: failed search keeps the no-packaging escape hatch", ok, str(clarify)[:120])
+    check("12 pipeline: failed search -> best-effort card, never a guess", ok, str(result.get("message", ""))[:100])
 
 
 # ------------------------------------------------- 13. refusal reason passthrough
@@ -615,6 +631,67 @@ def test_contradictory_unpacked_candidate_dropped() -> None:
     check("21 pipeline: 'X (no packaging)' dropped when X is also packaged", ok, str(clarify.get("options")))
 
 
+def test_misspelled_container_is_not_a_bare_noun() -> None:
+    """Adversarial #1: 'bottel' is 1 edit from 'bottle'.
+
+    A bare-noun guard that only checks exact container words would send it to
+    product search and surface 'Coca-Cola (no packaging)'. The near-miss
+    check keeps it on the packaging path.
+    """
+    main = FakeClient("openai", [CLARIFY_PAYLOAD])
+    pipeline = Pipeline(RULES, FEATURES, router=Router([main], timeout=5))
+    result = pipeline.identify("bottel")
+    clarify = result.get("clarify") or {}
+    # A misspelled container word keeps the packaging question - it is NOT
+    # sent to product search as a bare noun.
+    ok = result["status"] == "CLARIFY" and "kind" not in clarify and "bottle" in " ".join(
+        clarify.get("options", [])
+    )
+    check("22 adversarial: 'bottel' (typo) keeps the packaging question", ok, str(clarify.get("options"))[:100])
+
+
+def test_tie_between_two_rules_does_not_pick_first() -> None:
+    """Adversarial #2: 'plastic bottle and paper cup' hits two rules at the
+    same score. Picking rules.json order (carton-first) would shadow the cup.
+
+    A tie returns None from the fast path so the AI lists every component.
+    """
+    main = FakeClient("openai", [CLARIFY_PAYLOAD])
+    pipeline = Pipeline(RULES, FEATURES, router=Router([main], timeout=5))
+    # The fast path must NOT short-circuit on a tie.
+    result = pipeline.identify("plastic bottle and paper cup")
+    # Either the AI answered (status OK/CLARIFY) or it asked - but it must
+    # not have answered from a single rules.json-first match.
+    ok = result["status"] in ("OK", "CLARIFY") and result.get("mode") != "exact"
+    check("23 adversarial: tied rules -> AI layer, not rules.json-first", ok, f"status={result['status']} mode={result.get('mode')}")
+
+
+def test_no_packaging_gate_respects_packaging_vocabulary() -> None:
+    """Adversarial #3: 'no packaging: battery' must NOT refuse as not_packaging.
+
+    Batteries have their own rule; the deterministic gate must check whether
+    the item touches the packaging vocabulary and fall through to the model
+    when it does.
+    """
+    import json as _json
+    battery_payload = _json.dumps({
+        "status": "OK",
+        "confidence": 0.8,
+        "components": [{"part": "battery", "material": "alkaline", "confidence": 0.8}],
+        "source_hint": "battery",
+        "explanations": {"battery": "Batteries have a dedicated collection point."},
+        "product": {"name": "battery", "brand": ""},
+    })
+    main = FakeClient("openai", [battery_payload])
+    pipeline = Pipeline(RULES, FEATURES, router=Router([main], timeout=5))
+    result = pipeline.identify("no packaging: battery")
+    # The gate fell through; the model matched the battery rule.
+    ok = result["status"] == "OK" and any(
+        c.get("part") == "battery" for c in result.get("components", [])
+    )
+    check("24 adversarial: 'no packaging: battery' -> model matches battery rule, not refused", ok, f"status={result['status']} reason={result.get('reason')}")
+
+
 def main() -> int:
     print("AI plugin tests (fake providers, no network)")
     test_schema_accepts_valid()
@@ -641,6 +718,9 @@ def main() -> int:
     test_bare_noun_never_asks_about_packaging()
     test_container_word_still_asks_about_packaging()
     test_contradictory_unpacked_candidate_dropped()
+    test_misspelled_container_is_not_a_bare_noun()
+    test_tie_between_two_rules_does_not_pick_first()
+    test_no_packaging_gate_respects_packaging_vocabulary()
 
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     total = len(RESULTS)

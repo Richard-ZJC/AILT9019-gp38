@@ -125,9 +125,14 @@ def zero_cost_check(rules, features) -> bool:
     )
 
     overlap = pipeline.identify("ramen")
+    # A bare product word with no search router available: the pipeline does
+    # NOT pretend to ask about packaging (the user may have none), and does
+    # NOT guess. It returns a labelled best-effort move. counter is cumulative
+    # across the zero-cost checks: Trea (2) + ramen identify + disambiguate (2).
     overlap_ok = (
-        overlap["status"] == "CLARIFY"
-        and counter.calls == 4  # identify + product search; never guessed locally
+        overlap["status"] == "REFUSE"
+        and "best_effort" in (overlap.get("reason") or "")
+        and counter.calls == 4
     )
     print(
         "product fragment\n'ramen' -> "

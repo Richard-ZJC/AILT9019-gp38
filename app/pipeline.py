@@ -11,6 +11,7 @@ import re
 from typing import Any, Sequence
 
 from . import explain, fallback, matcher, refusal
+from .matcher import _levenshtein as _edit_distance
 from .ai_plugin.router import Router
 from .identify import Identification, Identifier
 from .match import Adjudicator, Verdict
@@ -38,17 +39,39 @@ _CONTAINER_WORDS = (
 )
 
 
+def _word_near_container(word: str, limit: int = 2) -> bool:
+    """True when a word is a container word or a near-miss of one.
+
+    'bottel' is 1 edit from 'bottle', so 'bottel' is NOT a bare noun - it is a
+    misspelled container word, and sending it to product search would surface
+    'Coca-Cola (no packaging)' instead of the packaging question it implies.
+    """
+    if not word:
+        return False
+    for container in _CONTAINER_WORDS:
+        if word == container:
+            return True
+        if abs(len(word) - len(container)) <= limit:
+            distance = _edit_distance(word, container)
+            cap = 1 if len(word) <= 5 else limit
+            if distance <= cap:
+                return True
+    return False
+
+
 def _is_bare_noun(text: str) -> bool:
-    """A short noun phrase with no size and no container word.
+    """A short noun phrase with no size and no container word (or near-miss).
 
     Such a query says nothing about packaging, so "which packaging do you see
     on the product?" is unanswerable - the user may not even be holding one.
+    A misspelled container word ('bottel', 'kup') is NOT a bare noun: the user
+    meant a container, so the packaging question is answerable.
     """
     lowered = " ".join((text or "").lower().replace("-", " ").split())
     words = re.findall(r"[a-z]+", lowered)
     if not words or len(words) > 2 or any(character.isdigit() for character in lowered):
         return False
-    if any(word in _CONTAINER_WORDS for word in words):
+    if any(_word_near_container(word) for word in words):
         return False
     return True
 
@@ -114,9 +137,18 @@ class Pipeline:
         # 0a'. the user picked the unpackaged candidate from a disambiguation
         # list - deterministic, no model call, and it beats everything below
         # except hazards ('no packaging: syringe' must still refuse as hazard).
+        # But only for items that are genuinely outside the packaging vocabulary:
+        # 'no packaging: battery' must NOT refuse here, because batteries have
+        # their own rule, so the user should still get it.
         if query.strip().lower().startswith("no packaging:"):
             item = query.strip()[len("no packaging:") :].strip() or "this item"
-            return self._refusal(session, refusal.not_packaging_item(item))
+            item_words = re.findall(r"[a-z]+", item.lower())
+            sortable = matcher._sortable_words(self.rules)
+            if item_words and not matcher._touches_packaging(item_words, sortable):
+                return self._refusal(session, refusal.not_packaging_item(item))
+            # item touches a part/material word -> it might be recyclable on its
+            # own (battery, glass, paper). Fall through to the normal flow so the
+            # model can match it instead of refusing.
 
         # 0b. exact keyword match - zero API calls
         hit = matcher.match(query, self.rules) if self.use_fast_path else None
@@ -278,22 +310,35 @@ class Pipeline:
         products = payload.products
         if not products and self.identifier is not None:
             products = self.identifier.disambiguate(query)
-        products = self._with_unpacked_option(query, products)
+        products = self._dedupe_products(products)
+        if not products:
+            # Search returned nothing usable. Synthesising a "(no packaging)"
+            # option would be a guess - chocolate, cola and ramen all come
+            # packaged, and pretending they might not is the same error the
+            # not_packaging rule exists to stop. Hand off to the best-effort
+            # card instead, which owes the user one concrete move.
+            body = refusal.payload("out_of_scope", "best_effort: product search empty")
+            body["message"] = (
+                f"I searched for '{query}' but could not name a concrete product. "
+                "Tell me the container itself - bottle, cup, carton or can - and I will give you the exact slot, "
+                "or hand it in at the re Kiosk where staff sort it by hand."
+            )
+            return self._refusal(session, body, raw_model=identification.model)
         question = f"Which '{query}' do you have?"
         clarify = fallback.build_products(question, products)
         session.remember(disambiguated=query)
         return self._ask(session, clarify, payload, identification, search_used=True)
 
-    def _with_unpacked_option(self, query: str, products: list[dict[str, str]]) -> list[dict[str, str]]:
-        """Keep the '(no packaging)' escape hatch first when search offered one.
+    def _dedupe_products(self, products: list[dict[str, str]]) -> list[dict[str, str]]:
+        """Drop exact-duplicate names; resolve the 'X' vs 'X (no packaging)' paradox.
 
-        It is not synthesised for every query: pretending that chocolate or cola
-        might come unpackaged would be as wrong as assuming lemon always does.
-        When search returns nothing at all we still need one usable option, and
-        "no packaging" is the only honest one.
+        A search that lists both "KitKat Tablet" and "KitKat Tablet (no
+        packaging)" contradicts itself: the same product cannot be both. The
+        packaged entry wins, and the phantom twin is dropped. The unpackaged
+        candidate is kept only when search offered it standalone (no packaged
+        twin), because that is the model saying "this thing genuinely comes
+        loose" - not us inventing it.
         """
-        if not products:
-            return [{"name": f"{query} (no packaging)", "packaging": "none"}]
         unique: list[dict[str, str]] = []
         seen: set[str] = set()
         for item in products:
@@ -301,18 +346,14 @@ class Pipeline:
             if key and key not in seen:
                 seen.add(key)
                 unique.append(item)
-        products = unique
-        unpacked = [item for item in products if (item.get("packaging") or "").lower() == "none"]
-        rest = [item for item in products if (item.get("packaging") or "").lower() != "none"]
-        if unpacked:
-            # A search that lists "KitKat Tablet" and "KitKat Tablet (no
-            # packaging)" contradicts itself: the same product cannot be both.
-            # The packaged entry wins, and the phantom twin is dropped.
-            base = unpacked[0]["name"].lower().replace(" (no packaging)", "").strip()
-            if not any(base in item.get("name", "").lower() for item in rest):
-                return (unpacked[:1] + rest)[:5]
+        unpacked = [item for item in unique if (item.get("packaging") or "").lower() == "none"]
+        rest = [item for item in unique if (item.get("packaging") or "").lower() != "none"]
+        if not unpacked:
             return rest[:5]
-        return products[:5]
+        base = unpacked[0]["name"].lower().replace(" (no packaging)", "").strip()
+        if any(base and base in item.get("name", "").lower() for item in rest):
+            return rest[:5]
+        return (unpacked[:1] + rest)[:5]
 
     # ------------------------------------------------------------ response builders
 
@@ -408,24 +449,12 @@ class Pipeline:
                     notes=["Best guess after two questions - check the packaging before you sort."],
                 )
 
-        # Deterministic backstop: the leading clarify option, when it is a real part.
-        for option in (clarify.get("options") or [])[:1]:
-            component = fallback.component_from_choice(option, self.features)
-            if component is None:
-                continue
-            verdict = self.adjudicator.resolve(component["part"], component["material"], query_text=query)
-            if verdict.covered:
-                return self._ok(
-                    session,
-                    text=query,
-                    verdicts=[verdict],
-                    confidence=0.35,
-                    mode="best_guess",
-                    model="none",
-                    explanations={},
-                    product=session.context.get("product") or {"name": query, "brand": ""},
-                    notes=["Best guess from the closest option - check the packaging before you sort."],
-                )
+        # No deterministic backstop. The previous version picked the first
+        # clarify option, but that option is either a product name (disambiguate
+        # chips, which maps to no rule) or the first packaging id in
+        # features.json (carton) - a blind guess that can name the wrong
+        # material. A labelled "I could not pin this down" with one concrete
+        # move is more honest than a confident wrong category.
 
         # No usable signal. The card still owes the user a move, not a shrug:
         # staff at the re Kiosk sort by hand, and one container word gets us
