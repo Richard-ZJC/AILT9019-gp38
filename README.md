@@ -86,6 +86,7 @@ The server is standard-library only, so it deploys to any Python web host with n
 ### Render (recommended, free)
 
 1. Sign up at render.com → **New Web Service** → connect this GitHub repo (`Richard-ZJC/AILT9019-gp38`).
+   **Important:** the deployable code (Procfile, `render.yaml`, the access-key gate) lives on the **`deploy`** branch, not `main`. When creating the service, set **Branch: `deploy`** (or use Blueprint and pick `deploy`). If you deploy `main`, you'll get the clean v1 with **no password gate**.
 2. Render auto-detects the `Procfile`; `render.yaml` pre-sets the start command and `/health` check.
 3. **Environment** tab — add these (read by `app/config.py`, never committed):
    - `OPENAI_API_KEY` — your Bailian / OpenAI key
