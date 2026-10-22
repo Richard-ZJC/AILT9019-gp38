@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -199,7 +200,7 @@ def serve(host: str, port: int, use_mock: bool) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Campus Recycling Helper server")
     parser.add_argument("--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8000, help="port (default: 8000)")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8000)), help="port (default: 8000, or $PORT)")
     parser.add_argument("--mock", action="store_true", help="use the deterministic offline provider instead of a real model")
     args = parser.parse_args(argv)
     return serve(args.host, args.port, args.mock)
