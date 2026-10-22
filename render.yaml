@@ -26,3 +26,5 @@ services:
         sync: false
       - key: ANTHROPIC_EXTRA_BODY
         sync: false
+      - key: ACCESS_KEY
+        sync: false

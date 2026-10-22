@@ -13,7 +13,7 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
@@ -102,7 +102,20 @@ def make_handler(pipeline):
                 return
             self._send_json(404, {"status": "ERROR", "message": "not found"})
 
+        def _access_ok(self) -> bool:
+            """If ACCESS_KEY is set, the request must carry it (header or ?key=)."""
+            gate = os.environ.get("ACCESS_KEY")
+            if not gate:
+                return True
+            provided = self.headers.get("X-Access-Key", "")
+            if not provided:
+                provided = (parse_qs(urlparse(self.path).query).get("key") or [""])[0]
+            return provided == gate
+
         def do_POST(self) -> None:  # noqa: N802
+            if not self._access_ok():
+                self._send_json(401, {"status": "ERROR", "message": "access denied: enter the shared key"})
+                return
             route = urlparse(self.path).path
             if route == "/identify":
                 self._handle_identify()

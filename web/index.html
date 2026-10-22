@@ -126,6 +126,13 @@
   .spinner { display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px;
     border: 2px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .gate-overlay { position: fixed; inset: 0; background: rgba(28,35,33,.55); display: grid; place-items: center; z-index: 50; padding: 20px; }
+  .gate-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: clamp(24px,4vw,32px); max-width: 380px; width: 100%; }
+  .gate-card h2 { margin: 0 0 8px; font-size: 19px; letter-spacing: -0.01em; }
+  .gate-msg { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  .gate-row { display: flex; gap: 10px; }
+  .gate-row input { flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 15px; color: var(--ink); outline: none; }
+  .gate-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
   @media (max-width: 560px) {
     .search { flex-wrap: wrap; }
@@ -170,6 +177,17 @@
   </footer>
 </div>
 
+<div class="gate-overlay hidden" id="gate">
+  <div class="gate-card">
+    <h2>Shared key required</h2>
+    <p id="gate-msg" class="gate-msg">Enter the group's shared key to use the assistant.</p>
+    <div class="gate-row">
+      <input id="gate-input" type="password" placeholder="shared key" autocomplete="off" />
+      <button class="primary" id="gate-enter" type="button">Enter</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const CATEGORY_CLASS = {
   "Paper": "paper",
@@ -187,6 +205,37 @@ const goEl = document.getElementById("go");
 const samplesEl = document.getElementById("samples");
 let sessionId = null;
 let onLanding = true;
+
+// Shared-key gate (the server enforces ACCESS_KEY). The modal only appears once
+// the server rejects a request with 401, so local dev (no gate) stays seamless.
+const ACCESS_KEY_STORAGE = "ailt9019_access_key";
+let accessKey = sessionStorage.getItem(ACCESS_KEY_STORAGE) || "";
+let lastIdentifyText = "";
+let pendingSubmit = null;
+const gateEl = document.getElementById("gate");
+const gateInput = document.getElementById("gate-input");
+const gateMsg = document.getElementById("gate-msg");
+
+function showGate(msg) {
+  if (msg) gateMsg.textContent = msg;
+  gateEl.classList.remove("hidden");
+  gateInput.focus();
+}
+function hideGate() { gateEl.classList.add("hidden"); }
+
+document.getElementById("gate-enter").addEventListener("click", () => {
+  const v = gateInput.value.trim();
+  if (!v) return;
+  accessKey = v;
+  sessionStorage.setItem(ACCESS_KEY_STORAGE, v);
+  gateInput.value = "";
+  gateMsg.textContent = "";
+  hideGate();
+  if (pendingSubmit) { const p = pendingSubmit; pendingSubmit = null; p(); }
+});
+gateInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") { event.preventDefault(); document.getElementById("gate-enter").click(); }
+});
 
 // The sample chips are onboarding, not a menu: once a query has run they would
 // sit next to an unrelated answer (type "lemon", see "Nissin cup noodles"), so
@@ -328,17 +377,27 @@ function render(payload) {
 }
 
 async function post(url, body) {
+  const headers = { "Content-Type": "application/json" };
+  if (accessKey) headers["X-Access-Key"] = accessKey;
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body)
   });
+  if (response.status === 401) {
+    accessKey = "";
+    sessionStorage.removeItem(ACCESS_KEY_STORAGE);
+    pendingSubmit = lastIdentifyText ? () => identify(lastIdentifyText) : null;
+    showGate("Wrong or missing key — ask the group for the shared key.");
+    throw new Error("access denied");
+  }
   const data = await response.json().catch(() => ({ status: "ERROR", message: "server returned invalid JSON" }));
   if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
   return data;
 }
 
 async function identify(text) {
+  lastIdentifyText = text;
   setBusy(true);
   setLanding(false);
   resultEl.innerHTML = `<div class="card"><p class="product">Checking the campus rule set…</p></div>`;

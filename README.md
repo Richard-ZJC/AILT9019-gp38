@@ -93,6 +93,7 @@ The server is standard-library only, so it deploys to any Python web host with n
    - `OPENAI_MODEL` — `qwen3.8-flash`
    - `OPENAI_EXTRA_BODY` — `{"enable_thinking": false}` (keeps latency at 2–5 s; without it Bailian thinks and takes 12–67 s)
    - (optional) `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL` / `ANTHROPIC_EXTRA_BODY` for the fallback channel
+   - `ACCESS_KEY` — set a shared password; the app then rejects every API call without it (frontend prompts for it). Leave unset for an open instance.
 4. Deploy → you get a public `https://ailt9019-gp38.onrender.com`. Free plan sleeps after inactivity (~30–60 s cold start).
 
 > The URL is public — anyone with the link can call the AI endpoint and spend your key's quota. Share it only within the group, or ask for a shared-password gate to be added.
